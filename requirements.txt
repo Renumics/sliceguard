@@ -1,3 +1,4 @@
+pandas
 notebook
 build
 twine

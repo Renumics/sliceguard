@@ -7,7 +7,7 @@ def test_segment_guard():
     df = pd.read_json("tests/predictions_embs.json")
 
     sg = SegmentGuard()
-    sg.find_issues(df, ["accent", "gender", "age"], "wer", metric_mode="min")
+    sg.find_issues(df, ["sentence", "accent", "gender", "age"], "wer", metric_mode="min")
 
     sg.report()
 

@@ -1,5 +1,5 @@
 import logging
-from typing import List, Literal, Dict
+from typing import List, Literal, Dict, Callable
 
 import pandas as pd
 
@@ -10,18 +10,20 @@ class SegmentGuard:
     """
 
 
-    def find_issues(self, data: pd.DataFrame, features: List[str], metric: str, metric_mode: Literal["min", "max"]="max", feature_types: Dict[str, Literal["raw", "nominal", "ordinal", "numerical"]]={}):
+    def find_issues(self, data: pd.DataFrame, features: List[str], y: str, y_pred: str, metric: Callable, metric_mode: Literal["min", "max"]="max", feature_types: Dict[str, Literal["raw", "nominal", "ordinal", "numerical"]]={}):
         """
         Find segments that are classified badly by your model.
         
         :param data: A pandas dataframe containing your data.
         :param features: A list of columns that contains features to feed into your model but also metadata.
-        :param metric: A column that contains the per sample evaluation metric you want to use for finding problems.
+        :param y: The column containing the ground-truth label.
+        :param y_pred: The column containing your models prediction.
+        :param metric: A callable metric function that must correspond to the form metric(y_true, y_pred) -> scikit-learn style.
         :param metric_mode: What do you optimize your metric for? max is the right choice for accuracy while e.g. min is good for regression error.
         
         """
         
-        df = data[features + [metric]]
+        df = data[features]
         
         # Try to infer the column dtypes
         dataset_length = len(df)
@@ -43,8 +45,9 @@ class SegmentGuard:
             else:
                 assert feature_types[col] in ("raw", "nominal", "ordinal", "numerical")
 
-
         
+
+
 
 
 

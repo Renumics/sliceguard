@@ -8,7 +8,7 @@ def test_segment_guard():
     print(df.columns)
 
     sg = SegmentGuard()
-    sg.find_segments(df)
+    sg.find_issues(df)
 
 
 

@@ -1,0 +1,7 @@
+pandas
+numpy
+jiwer
+fairlearn
+notebook
+build
+twine

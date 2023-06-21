@@ -17,3 +17,6 @@ classifiers = [
 [project.urls]
 "Homepage" = "https://github.com/Renumics/segment-guard"
 "Bug Tracker" = "https://github.com/Renumics/segment-guard/issues"
+
+[tool.setuptools]
+packages = ["segment_guard"]

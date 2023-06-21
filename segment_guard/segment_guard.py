@@ -8,7 +8,7 @@ class SegmentGuard:
     """
 
 
-    def find_issues(data: pd.Dataframe, features: List[str], metric: str, metric_mode: Literal["min", "max"]="max"):
+    def find_issues(self, data: pd.DataFrame, features: List[str], metric: str, metric_mode: Literal["min", "max"]="max"):
         """
         Find segments that are classified badly by your model.
         
@@ -21,7 +21,7 @@ class SegmentGuard:
         pass
 
 
-    def report():
+    def report(self):
         """
         Create an interactive report on the found issues in spotlight.
         """

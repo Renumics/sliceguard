@@ -6,7 +6,7 @@ import numpy as np
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, RobustScaler
 from fairlearn.metrics import MetricFrame
 from hnne import HNNE
-
+from renumics import spotlight
 
 class SegmentGuard:
     """
@@ -141,18 +141,43 @@ class SegmentGuard:
 
         # Calculate fairness metrics on the clusters with fairlearn
         mfs = []
+        clustering_metric_cols = []
+        clustering_count_cols = []
         for col in clustering_cols:
             mf = MetricFrame(metrics={"metric": metric}, y_true=df[y], y_pred=df[y_pred], sensitive_features=clustering_df[col])
             mfs.append(mf)
 
             metric_col = f"{col}_metric"
+            clustering_metric_cols.append(metric_col)
             clustering_df[metric_col] = np.nan
+
+            count_col = f"{col}_count"
+            clustering_count_cols.append(count_col)
+            clustering_df[count_col] = np.nan
+
             for idx, row in mf.by_group.iterrows():
                 clustering_df.loc[clustering_df[col] == idx, metric_col] = row["metric"]
+                clustering_df.loc[clustering_df[col] == idx, count_col] = (clustering_df[col] == idx).sum()
+        
+        # Determine the hierarchy levels that most likely capture real problems
+
+
+        for mf in mfs:
+            problem_threshold = mf.by_group["metric"].std() # calculate by level?
+            cluster_mean = mf.by_group["metric"].mean() # 
+
+            print(mf.by_group)
+            print()
+            print(mf.by_group["metric"].std())
+            print(mf.by_group["metric"].max())
+            print(mf.by_group["metric"].min())
+
+
+
         
 
-        print(clustering_df)
-        print(mfs)
+
+        # spotlight.show(clustering_df)
 
     def report(self):
         """

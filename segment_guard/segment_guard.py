@@ -140,30 +140,19 @@ class SegmentGuard:
         )
 
         # Calculate fairness metrics on the clusters with fairlearn
-        overall_metric = None
-        metric_maxs = []
-        metric_mins = []
-        metric_diffs = []
-        metric_ratios = []
+        mfs = []
         for col in clustering_cols:
             mf = MetricFrame(metrics={"metric": metric}, y_true=df[y], y_pred=df[y_pred], sensitive_features=clustering_df[col])
-            overall_metric = mf.overall.values[0]
-            mf_groups = mf.by_group
+            mfs.append(mf)
 
             metric_col = f"{col}_metric"
             clustering_df[metric_col] = np.nan
-            for idx, row in mf_groups.iterrows():
+            for idx, row in mf.by_group.iterrows():
                 clustering_df.loc[clustering_df[col] == idx, metric_col] = row["metric"]
-
-            metric_maxs.append(mf.group_max())
-            metric_mins.append(mf.group_min())
-            metric_diffs.append(mf.difference())
-            metric_ratios.append(mf.ratio())
-
-
         
 
-        print(overall_metric)
+        print(clustering_df)
+        print(mfs)
 
     def report(self):
         """

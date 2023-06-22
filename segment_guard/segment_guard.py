@@ -4,6 +4,8 @@ from typing import List, Literal, Dict, Callable
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, RobustScaler
+from fairlearn.metrics import MetricFrame
+from hnne import HNNE
 
 
 class SegmentGuard:
@@ -38,7 +40,7 @@ class SegmentGuard:
 
         """
 
-        df = data[features]
+        df = data[features + [y_pred, y]]
 
         # Try to infer the column dtypes
         dataset_length = len(df)
@@ -121,7 +123,47 @@ class SegmentGuard:
         # 3. the reason for the problem e.g. feature combination or rule that is characteristic for the cluster is determined.
 
         # Identify hierarchical clustering with h-nne
+        hnne = HNNE(
+            metric="euclidean"
+        )  # TODO Probably explore different settings for hnne. Default of metric is cosine. To determine if this is better choice!
+        projection = hnne.fit_transform(encoded_data)
+        partitions = np.flip(
+            hnne.hierarchy_parameters.partitions, axis=1
+        )  # reverse the order of the hierarchy levels, go from coarse to fine
+        partition_sizes = hnne.hierarchy_parameters.partition_sizes
+        partition_levels = len(partition_sizes)
+
+        clustering_cols = [f"clustering_{i}" for i in range(partition_levels)]
+        clustering_df = pd.DataFrame(
+            data=partitions,
+            columns=clustering_cols,
+        )
+
+        # Calculate fairness metrics on the clusters with fairlearn
+        overall_metric = None
+        metric_maxs = []
+        metric_mins = []
+        metric_diffs = []
+        metric_ratios = []
+        for col in clustering_cols:
+            mf = MetricFrame(metrics={"metric": metric}, y_true=df[y], y_pred=df[y_pred], sensitive_features=clustering_df[col])
+            overall_metric = mf.overall.values[0]
+            mf_groups = mf.by_group
+
+            metric_col = f"{col}_metric"
+            clustering_df[metric_col] = np.nan
+            for idx, row in mf_groups.iterrows():
+                clustering_df.loc[clustering_df[col] == idx, metric_col] = row["metric"]
+
+            metric_maxs.append(mf.group_max())
+            metric_mins.append(mf.group_min())
+            metric_diffs.append(mf.difference())
+            metric_ratios.append(mf.ratio())
+
+
         
+
+        print(overall_metric)
 
     def report(self):
         """

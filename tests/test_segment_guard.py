@@ -19,7 +19,7 @@ def test_segment_guard():
         df,
         ["accent", "gender", "age", "up_votes"],
         "sentence",
-        "pred",
+        "prediction",
         wer_metric,
         metric_mode="min",
         feature_types={"age": "ordinal"},

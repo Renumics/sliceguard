@@ -4,6 +4,7 @@ jiwer
 fairlearn
 hnne
 scikit-learn
+fairlearn
 notebook
 build
 twine

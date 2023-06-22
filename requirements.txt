@@ -2,6 +2,8 @@ pandas
 numpy
 jiwer
 fairlearn
+hnne
+scikit-learn
 notebook
 build
 twine

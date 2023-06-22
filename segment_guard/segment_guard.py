@@ -3,7 +3,7 @@ from typing import List, Literal, Dict, Callable
 
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, RobustScaler
 
 
 class SegmentGuard:
@@ -55,7 +55,7 @@ class SegmentGuard:
                     feature_types[col] = "raw"
                 else:
                     logging.warning(
-                        f"Feature {col} was inferred as being categorical. Will be treated as nominal by default. If ordinal specify in feature_types!"
+                        f"Feature {col} was inferred as being categorical. Will be treated as nominal by default. If ordinal specify in feature_types and feature_orders!"
                     )
                     feature_types[col] = "nominal"
             elif col not in feature_types:
@@ -75,7 +75,13 @@ class SegmentGuard:
         for col in features:
             feature_type = feature_types[col]
             if feature_type == "numerical":
-                encoded_data = np.concatenate((encoded_data, df[col].values), axis=1)
+                # TODO: Think about proper scaling method. Intuition here is to preserve outliers,
+                # however the range of the data can possibly dominate one hot and ordinal encoded features.
+                normalized_data = RobustScaler(
+                    quantile_range=(2.5, 97.5)
+                ).fit_transform(df[col].values.reshape(-1, 1))
+
+                encoded_data = np.concatenate((encoded_data, normalized_data), axis=1)
             elif feature_type == "nominal":
                 one_hot_data = OneHotEncoder(sparse_output=False).fit_transform(
                     df[col].values.reshape(-1, 1)
@@ -93,11 +99,12 @@ class SegmentGuard:
                     raise RuntimeError(
                         f"For ordinal features EACH category has to occur in the specified order. Missing {category_difference}."
                     )
-                print(len(feature_order))
-                print(len(unique_categories))
                 ordinal_data = OrdinalEncoder(categories=[feature_order]).fit_transform(
                     df[col].values.reshape(-1, 1)
                 )
+                ordinal_data = ordinal_data / (
+                    len(feature_order) - 1
+                )  # normalize with unique category count to make compatible with range of one hot encoding
                 encoded_data = np.concatenate((encoded_data, ordinal_data), axis=1)
             elif feature_type == "raw":
                 raise RuntimeError(
@@ -107,8 +114,6 @@ class SegmentGuard:
                 raise RuntimeError(
                     "Encountered unknown feature type when encoding and normalizing features."
                 )
-        
-            
 
     def report(self):
         """

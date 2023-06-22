@@ -12,10 +12,12 @@ def wer_metric(y_true, y_pred):
 def test_segment_guard():
     df = pd.read_json("tests/predictions_embs.json")
 
+    print(df.columns)
+
     sg = SegmentGuard()
     sg.find_issues(
         df,
-        ["accent", "gender", "age"],
+        ["accent", "gender", "age", "up_votes"],
         "sentence",
         "pred",
         wer_metric,

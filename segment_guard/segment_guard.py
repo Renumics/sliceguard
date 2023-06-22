@@ -115,6 +115,14 @@ class SegmentGuard:
                     "Encountered unknown feature type when encoding and normalizing features."
                 )
 
+        # Perform detection of problematic clusters based on the given features
+        # 1. A hierarchical clustering is performed and metrics are calculated for all hierarchies
+        # 2. hierarchy level that is most indicative of a real problem is then determined
+        # 3. the reason for the problem e.g. feature combination or rule that is characteristic for the cluster is determined.
+
+        # Identify hierarchical clustering with h-nne
+        
+
     def report(self):
         """
         Create an interactive report on the found issues in spotlight.

@@ -141,6 +141,16 @@ class SegmentGuard:
             columns=clustering_cols,
         )
 
+        # Calculate metrics on per sample level for later use in hierarchy merging
+        metrics = []
+        for _, row in df.iterrows():
+            sample_metric = metric([row[y]], [row[y_pred]])
+            metrics.append(sample_metric)
+            
+        clustering_df["metric"] = np.nan
+        clustering_df["metric"] = metrics
+
+
         # Calculate fairness metrics on the clusters with fairlearn
         mfs = []
         clustering_metric_cols = []
@@ -162,16 +172,17 @@ class SegmentGuard:
                 clustering_df.loc[clustering_df[col] == idx, count_col] = (clustering_df[col] == idx).sum()
         
         # Determine the hierarchy levels that most likely capture real problems
+        # TODO: Determine if these values should be chosen adaptively, potentially differing on every level
+        group_dfs = []
+
         if min_drop is None:
-            min_drop = 0.05 * mfs[0].overall.values[0]
+            min_drop = 0.1 * mfs[0].overall.values[0]
         if min_support is None:
             min_support = round(max(0.0025 * len(df), 5))
         print(f"Using {min_support} as minimum support for determining problematic clusters.")
         print(f"Using {min_drop} as minimum drop for determining problematic clusters.")
 
-
-
-        previous_mf = None
+        previous_group_df = None
         previous_clustering_col = None
         for mf, clustering_col in zip(mfs, clustering_cols):
             # Calculate cluster support
@@ -180,10 +191,50 @@ class SegmentGuard:
             group_df = pd.concat((mf.by_group, pd.DataFrame(data=supports, columns=["support"]), pd.DataFrame(data=drops, columns=["drop"])), axis=1)
 
             
+            group_df["issue"] = False
+
+            group_df.loc[(group_df["drop"] > min_drop) & (group_df["support"] > min_support), "issue"] = True
             
-            previous_mf = mf
+            # Check overlap with parent cluster and calculate how much drop this cluster causes
+            # Unmark parent if drop shows mostly on this level
+            if previous_group_df is not None:
+                for cluster, row in group_df.iterrows():
+                    group_entries = clustering_df[clustering_df[clustering_col] == cluster]
+                    assert (group_entries[previous_clustering_col].values[0] == group_entries[previous_clustering_col].values).all()
+                    parent_cluster = group_entries[previous_clustering_col].values[0]
+                    parent_cluster_info = previous_group_df.loc[parent_cluster]
+
+                    num_child_clusters = len(clustering_df[clustering_df[previous_clustering_col] == parent_cluster][clustering_col].unique())
+
+
+
+                    parent_group_entries = clustering_df[clustering_df[previous_clustering_col] == parent_cluster]
+                    abs_parent_drop = (clustering_df.loc[parent_group_entries.index]["metric"] - mf.overall.values[0]).sum()
+
+                    abs_cluster_drop = (clustering_df.loc[group_entries.index]["metric"] - mf.overall.values[0]).sum()
+
+                    if (abs_cluster_drop / abs_parent_drop) > (1 / num_child_clusters): # TODO Verify this rule makes sense and the factor is okay probably use 2*std instead
+                        previous_group_df.loc[parent_cluster, "issue"] = False
+                        print("----------------------------------------")
+                        print((abs_cluster_drop / abs_parent_drop))
+                        print("cluster")
+                        print(abs_cluster_drop)
+                        print("parent")
+                        print(abs_parent_drop)
+                    else:
+                        group_df.loc[cluster, "issue"] = False
+
+            group_dfs.append(group_df)
+
+            previous_group_df = group_df
             previous_clustering_col = clustering_col
         
+        num_issues = np.sum([group_df["issue"].sum() for group_df in group_dfs])
+
+        print(f"Identified {num_issues} problematic segments.")
+        for hierarchy_level, group_df in enumerate(group_dfs):
+            print(f"-------- Hierarchy level {hierarchy_level} --------")
+            print(group_df[group_df["issue"] == True])
 
 
         # spotlight.show(clustering_df)

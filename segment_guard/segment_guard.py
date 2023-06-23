@@ -25,6 +25,8 @@ class SegmentGuard:
             str, Literal["raw", "nominal", "ordinal", "numerical"]
         ] = {},
         feature_orders: Dict[str, list] = {},
+        min_support = None,
+        min_drop = None
     ):
         """
         Find segments that are classified badly by your model.
@@ -160,20 +162,27 @@ class SegmentGuard:
                 clustering_df.loc[clustering_df[col] == idx, count_col] = (clustering_df[col] == idx).sum()
         
         # Determine the hierarchy levels that most likely capture real problems
-
-
-        for mf in mfs:
-            problem_threshold = mf.by_group["metric"].std() # calculate by level?
-            cluster_mean = mf.by_group["metric"].mean() # 
-
-            print(mf.by_group)
-            print()
-            print(mf.by_group["metric"].std())
-            print(mf.by_group["metric"].max())
-            print(mf.by_group["metric"].min())
+        if min_drop is None:
+            min_drop = 0.05 * mfs[0].overall.values[0]
+        if min_support is None:
+            min_support = round(max(0.0025 * len(df), 5))
+        print(f"Using {min_support} as minimum support for determining problematic clusters.")
+        print(f"Using {min_drop} as minimum drop for determining problematic clusters.")
 
 
 
+        previous_mf = None
+        previous_clustering_col = None
+        for mf, clustering_col in zip(mfs, clustering_cols):
+            # Calculate cluster support
+            drops = mf.overall.values[0] - mf.by_group.values if metric_mode == "max" else mf.by_group.values - mf.overall.values[0]
+            supports = [(clustering_df[clustering_col] == cluster).sum() for cluster in mf.by_group.index]
+            group_df = pd.concat((mf.by_group, pd.DataFrame(data=supports, columns=["support"]), pd.DataFrame(data=drops, columns=["drop"])), axis=1)
+
+            
+            
+            previous_mf = mf
+            previous_clustering_col = clustering_col
         
 
 

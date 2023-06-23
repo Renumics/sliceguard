@@ -141,15 +141,6 @@ class SegmentGuard:
             columns=clustering_cols,
         )
 
-        # Calculate metrics on per sample level for later use in hierarchy merging
-        metrics = []
-        for _, row in df.iterrows():
-            sample_metric = metric([row[y]], [row[y_pred]])
-            metrics.append(sample_metric)
-            
-        clustering_df["metric"] = np.nan
-        clustering_df["metric"] = metrics
-
 
         # Calculate fairness metrics on the clusters with fairlearn
         mfs = []
@@ -190,6 +181,7 @@ class SegmentGuard:
             supports = [(clustering_df[clustering_col] == cluster).sum() for cluster in mf.by_group.index]
             group_df = pd.concat((mf.by_group, pd.DataFrame(data=supports, columns=["support"]), pd.DataFrame(data=drops, columns=["drop"])), axis=1)
 
+            print(group_df)
             
             group_df["issue"] = False
 
@@ -204,23 +196,23 @@ class SegmentGuard:
                     parent_cluster = group_entries[previous_clustering_col].values[0]
                     parent_cluster_info = previous_group_df.loc[parent_cluster]
 
-                    num_child_clusters = len(clustering_df[clustering_df[previous_clustering_col] == parent_cluster][clustering_col].unique())
+                   
+                    child_clusters = clustering_df[clustering_df[previous_clustering_col] == parent_cluster][clustering_col].unique()
+                    # print(child_clusters)
+                    num_child_clusters = len(child_clusters)
+                    child_cluster_drops = []
+                    child_cluster_supports = []
+                    for child_cluster in child_clusters:
+                        child_cluster_info = group_df.loc[child_cluster]
+                        child_cluster_drops.append(child_cluster_info["drop"])
+                        child_cluster_supports.append(child_cluster_info["support"])
+                    # print(child_cluster_drops)
+                    # print(child_cluster_supports)
 
+                    
 
-
-                    parent_group_entries = clustering_df[clustering_df[previous_clustering_col] == parent_cluster]
-                    abs_parent_drop = (clustering_df.loc[parent_group_entries.index]["metric"] - mf.overall.values[0]).sum()
-
-                    abs_cluster_drop = (clustering_df.loc[group_entries.index]["metric"] - mf.overall.values[0]).sum()
-
-                    if (abs_cluster_drop / abs_parent_drop) > (1 / num_child_clusters): # TODO Verify this rule makes sense and the factor is okay probably use 2*std instead
+                    if row["support"] > min_support and row["drop"] > min_drop: # TODO Verify this rule makes sense, could cause larger clusters to be discarded because of one also bad subcluster
                         previous_group_df.loc[parent_cluster, "issue"] = False
-                        print("----------------------------------------")
-                        print((abs_cluster_drop / abs_parent_drop))
-                        print("cluster")
-                        print(abs_cluster_drop)
-                        print("parent")
-                        print(abs_parent_drop)
                     else:
                         group_df.loc[cluster, "issue"] = False
 
@@ -232,12 +224,22 @@ class SegmentGuard:
         num_issues = np.sum([group_df["issue"].sum() for group_df in group_dfs])
 
         print(f"Identified {num_issues} problematic segments.")
-        for hierarchy_level, group_df in enumerate(group_dfs):
-            print(f"-------- Hierarchy level {hierarchy_level} --------")
-            print(group_df[group_df["issue"] == True])
 
+        issues = []
+        for hierarchy_level, (group_df, clustering_col) in enumerate(zip(group_dfs, clustering_cols)):
+            hierarchy_issues = group_df[group_df["issue"] == True].index
+            for issue in hierarchy_issues:
+                issue_indices = clustering_df[clustering_df[clustering_col] == issue].index
+                issues.append(issue_indices)
+        
+        return issues
 
-        # spotlight.show(clustering_df)
+    
+
+        # df["age"] = df["age"].astype("category")
+        # df["gender"] = df["gender"].astype("category")
+        # df["accent"] = df["accent"].astype("category")
+        # spotlight.show(df, wait=True)
 
     def report(self):
         """

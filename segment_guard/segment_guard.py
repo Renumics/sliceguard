@@ -70,7 +70,7 @@ class SegmentGuard:
             else:
                 assert feature_types[col] in ("raw", "nominal", "ordinal", "numerical")
 
-        print(feature_types)
+        # print(feature_types)
 
         # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant
 
@@ -181,7 +181,7 @@ class SegmentGuard:
             supports = [(clustering_df[clustering_col] == cluster).sum() for cluster in mf.by_group.index]
             group_df = pd.concat((mf.by_group, pd.DataFrame(data=supports, columns=["support"]), pd.DataFrame(data=drops, columns=["drop"])), axis=1)
 
-            print(group_df)
+            # print(group_df)
             
             group_df["issue"] = False
 
@@ -225,14 +225,18 @@ class SegmentGuard:
 
         print(f"Identified {num_issues} problematic segments.")
 
-        issues = []
+        issue_df = pd.DataFrame(data = [-1] * len(df), columns=["issue"])
+
+        issue_index = 0
         for hierarchy_level, (group_df, clustering_col) in enumerate(zip(group_dfs, clustering_cols)):
             hierarchy_issues = group_df[group_df["issue"] == True].index
             for issue in hierarchy_issues:
-                issue_indices = clustering_df[clustering_df[clustering_col] == issue].index
-                issues.append(issue_indices)
+                issue_indices = clustering_df[clustering_df[clustering_col] == issue].index.values
+                issue_df.loc[issue_indices, "issue"] = issue_index
+                issue_index += 1
         
-        return issues
+
+        return issue_df
 
     
 

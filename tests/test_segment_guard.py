@@ -26,7 +26,7 @@ def test_segment_guard():
         metric_mode="min",
         feature_types={"age": "ordinal"},
         feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
-        min_support = 20
+        min_support = 50
     )
 
     df["age"] = df["age"].astype("category")

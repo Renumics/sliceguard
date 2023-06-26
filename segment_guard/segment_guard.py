@@ -268,13 +268,11 @@ class SegmentGuard:
             issue_indices = np.where(issue_df["issue"] == issue)[0]
             y = np.zeros(len(issue_df))
             y[issue_indices] = 1
-            clf = DecisionTreeClassifier(max_depth=2, max_features=3) # keep the trees simple to not overfit
+            clf = DecisionTreeClassifier(max_depth=3, max_features=5) # keep the trees simple to not overfit
             clf.fit(classification_data, y)
 
             preds = clf.predict(classification_data)
             f1 = f1_score(y, preds)
-
-            print(f1)
 
             importances = clf.feature_importances_
             feature_order = np.argsort(importances)
@@ -287,7 +285,7 @@ class SegmentGuard:
             feature_mask = ordered_importances > (feature_importance_max - feature_importance_std * 0.75)
             causing_features = ordered_features[feature_mask]
 
-            if f1 > 0.65:
+            if f1 > 0.7:
                 issue_df.loc[issue_indices, "explanation"] = " and ".join(causing_features)
 
 

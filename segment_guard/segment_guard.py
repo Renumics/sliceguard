@@ -8,6 +8,7 @@ from fairlearn.metrics import MetricFrame
 from hnne import HNNE
 from sklearn.preprocessing import LabelEncoder
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import f1_score
 
 class SegmentGuard:
     """
@@ -260,14 +261,21 @@ class SegmentGuard:
 
         # Fit tree to generate feature importances
         issue_df["explanation"] = ""
+        
         for issue in issue_df["issue"].unique():
             if issue == "-1": # Skip data points with no issues
                 continue
             issue_indices = np.where(issue_df["issue"] == issue)[0]
             y = np.zeros(len(issue_df))
             y[issue_indices] = 1
-            clf = DecisionTreeClassifier()
+            clf = DecisionTreeClassifier(max_depth=2, max_features=3) # keep the trees simple to not overfit
             clf.fit(classification_data, y)
+
+            preds = clf.predict(classification_data)
+            f1 = f1_score(y, preds)
+
+            print(f1)
+
             importances = clf.feature_importances_
             feature_order = np.argsort(importances)
             ordered_importances = importances[feature_order]
@@ -279,7 +287,8 @@ class SegmentGuard:
             feature_mask = ordered_importances > (feature_importance_max - feature_importance_std * 0.75)
             causing_features = ordered_features[feature_mask]
 
-            issue_df.loc[issue_indices, "explanation"] = " and ".join(causing_features)
+            if f1 > 0.65:
+                issue_df.loc[issue_indices, "explanation"] = " and ".join(causing_features)
 
 
 

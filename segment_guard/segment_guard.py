@@ -10,6 +10,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import f1_score
 
+from sentence_transformers import SentenceTransformer
+
 class SegmentGuard:
     """
     The main class for detecting issues in your data
@@ -44,7 +46,7 @@ class SegmentGuard:
 
         """
 
-        df = data[features + [y_pred, y]]
+        df = data[list(set(features + [y_pred, y]))] # if y or y_pred is also in features
 
         # Try to infer the column dtypes
         dataset_length = len(df)
@@ -113,6 +115,16 @@ class SegmentGuard:
                 )  # normalize with unique category count to make compatible with range of one hot encoding
                 encoded_data = np.concatenate((encoded_data, ordinal_data), axis=1)
             elif feature_type == "raw":
+                first_entry = df[col].iloc[0]
+                if first_entry.lower().endswith(".wav"): # TODO: Improve data type inference for raw data
+                    raise RuntimeError("Embedding generation not implemented yet.")
+                elif first_entry.lower().endswith(".jpg") or first_entry.lower().endswith(".jpeg") or first_entry.lower().endswith(".png"):
+                    raise RuntimeError("Embedding generation not implemented yet.")
+                else: # Treat as text if nothing known
+                    model = SentenceTransformer('all-MiniLM-L6-v2')
+                    sentence_embeddings = model.encode(df[col].values)
+                    print(sentence_embeddings.shape)
+
                 raise RuntimeError(
                     "Not implemented yet. Later embeddings will be generated to make this work on unstructured data."
                 )

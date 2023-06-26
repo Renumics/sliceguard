@@ -8,3 +8,5 @@ fairlearn
 notebook
 build
 twine
+transformers
+sentence-transformers

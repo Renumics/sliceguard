@@ -26,7 +26,7 @@ def test_segment_guard():
         metric_mode="min",
         feature_types={"age": "ordinal"},
         feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
-        min_support = 20
+        min_support = 50
     )
 
     df["age"] = df["age"].astype("category")
@@ -34,7 +34,7 @@ def test_segment_guard():
     df["accent"] = df["accent"].astype("category")
 
     df = pd.concat((df, issue_df), axis=1)
-    spotlight.show(df, dtype={"speaker_embedding": Embedding, "text_embedding_ann": Embedding, "text_embedding_pred": Embedding})
+    # spotlight.show(df, dtype={"speaker_embedding": Embedding, "text_embedding_ann": Embedding, "text_embedding_pred": Embedding})
 
     
 

@@ -6,7 +6,9 @@ import numpy as np
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, RobustScaler
 from fairlearn.metrics import MetricFrame
 from hnne import HNNE
-from renumics import spotlight
+from sklearn.preprocessing import LabelEncoder
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import f1_score
 
 class SegmentGuard:
     """
@@ -228,13 +230,67 @@ class SegmentGuard:
         issue_df = pd.DataFrame(data = [-1] * len(df), columns=["issue"])
 
         issue_index = 0
-        for hierarchy_level, (group_df, clustering_col) in enumerate(zip(group_dfs, clustering_cols)):
+        for _, (group_df, clustering_col) in enumerate(zip(group_dfs, clustering_cols)):
             hierarchy_issues = group_df[group_df["issue"] == True].index
             for issue in hierarchy_issues:
                 issue_indices = clustering_df[clustering_df[clustering_col] == issue].index.values
                 issue_df.loc[issue_indices, "issue"] = issue_index
                 issue_index += 1
         
+        # Derive rules that are characteristic for each identified problem segment
+        # This is done to help understanding of the problem reason
+        # First stage this will be only importance values!
+        
+
+        # Encode the data and keep track of conversions to keep interpretable
+        classification_data = np.zeros((len(df), 0))
+        label_encoders = {}
+        for col in features:
+            feature_type = feature_types[col]
+            if feature_type == "numerical":
+                classification_data = np.concatenate((classification_data, df[col].values.reshape(-1, 1)), axis=1)
+            elif feature_type == "nominal" or feature_type == "ordinal":
+                label_encoder = LabelEncoder()
+                integer_encoded_data = label_encoder.fit_transform(df[col].values).reshape(-1, 1)
+                label_encoders[col] = label_encoder
+                classification_data = np.concatenate((classification_data, integer_encoded_data), axis=1)
+            elif feature_type == "raw":
+                raise RuntimeError("Cannot generate explanations for raw data yet.")
+            else:
+                raise RuntimeError("Met unexpected feature type while generating explanations.")       
+
+        # Fit tree to generate feature importances
+        issue_df["explanation"] = ""
+        
+        for issue in issue_df["issue"].unique():
+            if issue == "-1": # Skip data points with no issues
+                continue
+            issue_indices = np.where(issue_df["issue"] == issue)[0]
+            y = np.zeros(len(issue_df))
+            y[issue_indices] = 1
+            clf = DecisionTreeClassifier(max_depth=3, max_features=5) # keep the trees simple to not overfit
+            clf.fit(classification_data, y)
+
+            preds = clf.predict(classification_data)
+            f1 = f1_score(y, preds)
+
+            importances = clf.feature_importances_
+            feature_order = np.argsort(importances)
+            ordered_importances = importances[feature_order]
+            ordered_features = np.array(features)[feature_order]
+
+
+            feature_importance_max = ordered_importances.max()
+            feature_importance_std = ordered_importances.std()
+            feature_mask = ordered_importances > (feature_importance_max - feature_importance_std * 0.75)
+            causing_features = ordered_features[feature_mask]
+
+            if f1 > 0.7:
+                issue_df.loc[issue_indices, "explanation"] = " and ".join(causing_features)
+
+
+
+
 
         return issue_df
 

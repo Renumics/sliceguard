@@ -25,7 +25,7 @@ def test_segment_guard():
         metric_mode="min",
         # feature_types={"age": "ordinal"},
         # feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
-        min_support=40,
+        min_support=10,
     )
 
     df["age"] = df["age"].astype("category")
@@ -34,6 +34,7 @@ def test_segment_guard():
 
     df = pd.concat((df, issue_df), axis=1)
 
+    data_issue_severity = []
     data_issues = []
     for issue in issue_df["issue"].unique():
         if issue == -1:
@@ -51,6 +52,9 @@ def test_segment_guard():
             severity="warning", description=issue_explanation, rows=issue_rows
         )
         data_issues.append(data_issue)
+        data_issue_severity.append(issue_metric)
+
+    data_issue_order = np.argsort(data_issue_severity)[::-1] # TODO Has to differ in max metric case
 
     spotlight.show(
         df,
@@ -59,7 +63,7 @@ def test_segment_guard():
             "text_embedding_ann": Embedding,
             "text_embedding_pred": Embedding,
         },
-        issues=data_issues,
+        issues=np.array(data_issues)[data_issue_severity].tolist(),
     )
 
 

@@ -85,6 +85,7 @@ class SegmentGuard:
 
         # Encode the features for clustering according to inferred types
         encoded_data = np.zeros((len(df), 0))
+        prereduced_embeddings = {}
         for col in features:
             feature_type = feature_types[col]
             if feature_type == "numerical":
@@ -147,11 +148,11 @@ class SegmentGuard:
                     reduced_embeddings
                 )  # TODO: Verify if this makes sense
 
-                # TODO: Think about normalizing these two values
-
                 encoded_data = np.concatenate(
                     (encoded_data, reduced_embeddings), axis=1
                 )
+
+                prereduced_embeddings[col] = reduced_embeddings # safe this as it can be used for generating explanations again
 
             else:
                 raise RuntimeError(
@@ -312,6 +313,8 @@ class SegmentGuard:
         # First stage this will be only importance values!
 
         # Encode the data and keep track of conversions to keep interpretable
+        feature_groups = [] # list of indices for grouped features
+        current_feature_index = 0
         classification_data = np.zeros((len(df), 0))
         label_encoders = {}
         for col in features:
@@ -320,6 +323,8 @@ class SegmentGuard:
                 classification_data = np.concatenate(
                     (classification_data, df[col].values.reshape(-1, 1)), axis=1
                 )
+                feature_groups.append([current_feature_index])
+                current_feature_index += 1
             elif feature_type == "nominal" or feature_type == "ordinal":
                 label_encoder = LabelEncoder()
                 integer_encoded_data = label_encoder.fit_transform(
@@ -329,8 +334,14 @@ class SegmentGuard:
                 classification_data = np.concatenate(
                     (classification_data, integer_encoded_data), axis=1
                 )
+                feature_groups.append([current_feature_index])
+                current_feature_index += 1
             elif feature_type == "raw":
-                raise RuntimeError("Cannot generate explanations for raw data yet.")
+                reduced_embeddings = prereduced_embeddings[col]
+
+                
+                feature_groups.append(list(range(current_feature_index, current_feature_index + reduced_embeddings.shape[1])))
+                current_feature_index += reduced_embeddings.shape[1]
             else:
                 raise RuntimeError(
                     "Met unexpected feature type while generating explanations."

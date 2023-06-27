@@ -338,7 +338,9 @@ class SegmentGuard:
                 current_feature_index += 1
             elif feature_type == "raw":
                 reduced_embeddings = prereduced_embeddings[col]
-
+                classification_data = np.concatenate(
+                    (classification_data, reduced_embeddings), axis=1
+                )
                 
                 feature_groups.append(list(range(current_feature_index, current_feature_index + reduced_embeddings.shape[1])))
                 current_feature_index += reduced_embeddings.shape[1]
@@ -365,6 +367,16 @@ class SegmentGuard:
             f1 = f1_score(y, preds)
 
             importances = clf.feature_importances_
+
+            # aggregate importances of grouped features
+            agg_importances = []
+            for feature_group in feature_groups:
+                if len(feature_group) > 1:
+                    agg_importances.append(importances[feature_group].max())
+                else:
+                    agg_importances.append(importances[feature_group[0]])
+            importances = np.array(agg_importances)
+
             feature_order = np.argsort(importances)
             ordered_importances = importances[feature_order]
             ordered_features = np.array(features)[feature_order]

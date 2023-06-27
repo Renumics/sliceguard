@@ -302,15 +302,22 @@ class SegmentGuard:
 
         issue_df = pd.DataFrame(data=[-1] * len(df), columns=["issue"], index=df.index)
         issue_df["issue"] = issue_df["issue"].astype(int)
+        issue_df["issue_metric"] = np.nan
 
         issue_index = 0
-        for _, (group_df, clustering_col) in enumerate(zip(group_dfs, clustering_cols)):
+        for _, (group_df, clustering_col, clustering_metric_col) in enumerate(
+            zip(group_dfs, clustering_cols, clustering_metric_cols)
+        ):
             hierarchy_issues = group_df[group_df["issue"] == True].index
             for issue in hierarchy_issues:
                 issue_indices = clustering_df[
                     clustering_df[clustering_col] == issue
                 ].index.values
                 issue_df.loc[issue_indices, "issue"] = issue_index
+                issue_metric = clustering_df[clustering_df[clustering_col] == issue][
+                    clustering_metric_col
+                ].values[0]
+                issue_df.loc[issue_indices, "issue_metric"] = issue_metric
                 issue_index += 1
 
         # Derive rules that are characteristic for each identified problem segment

@@ -43,7 +43,7 @@ def test_segment_guard():
         ].tolist()  # Note: Has to be row index not pandas index!
         issue_metric = issue_df[issue_df["issue"] == issue].iloc[0]["issue_metric"]
         issue_explanation = (
-            f"{issue_metric} -> "
+            f"{issue_metric:.2f} -> "
             + issue_df[issue_df["issue"] == issue].iloc[0]["explanation"]
         )
 

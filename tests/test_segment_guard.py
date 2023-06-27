@@ -36,10 +36,13 @@ def test_segment_guard():
 
     data_issues = []
     for issue in issue_df["issue"].unique():
-        issue_rows = issue_df[issue_df["issue"] == issue].index.values.tolist()
+        if issue == -1:
+            continue
+        issue_rows = np.where(issue_df["issue"] == issue)[0].tolist() # Note: Has to be row index not pandas index!
         issue_explanation = issue_df[issue_df["issue"] == issue].iloc[0]["explanation"]
         data_issue = DataIssue(severity="warning", description=issue_explanation, rows=issue_rows)
         data_issues.append(data_issue)
+
 
 
     spotlight.show(df, dtype={"speaker_embedding": Embedding, "text_embedding_ann": Embedding, "text_embedding_pred": Embedding}, issues=data_issues)

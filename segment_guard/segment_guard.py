@@ -53,6 +53,8 @@ class SegmentGuard:
             list(set(features + [y_pred, y]))
         ]  # if y or y_pred is also in features
 
+        # df = df.reset_index()
+
         # Try to infer the column dtypes
         dataset_length = len(df)
 
@@ -136,23 +138,26 @@ class SegmentGuard:
                     embeddings = generate_text_embeddings(df[col].values)
 
                 reduced_embeddings = umap.UMAP(
-                    n_neighbors=min(len(df) - 1, 30),
-                    min_dist=0.0,
+                    # n_neighbors=min(len(df) - 1, 30),
+                    # min_dist=0.0,
                     n_components=2,
                     random_state=42,
                 ).fit_transform(embeddings)
 
-                reduced_embeddings = RobustScaler(
-                    quantile_range=(2.5, 97.5)
-                ).fit_transform(
-                    reduced_embeddings
-                )  # TODO: Verify if this makes sense
+                # TODO: Check if normalization makes sense. Probably do not normalize dimensiosn indenpendently!
+                # reduced_embeddings = RobustScaler(
+                #     quantile_range=(2.5, 97.5)
+                # ).fit_transform(
+                #     reduced_embeddings
+                # )
+
+                # safe this as it can be used for generating explanations again
+                # do not normalize as this will probably cause non blobby clusters and it is unclear what clustering assumes
+                prereduced_embeddings[col] = reduced_embeddings
 
                 encoded_data = np.concatenate(
                     (encoded_data, reduced_embeddings), axis=1
                 )
-
-                prereduced_embeddings[col] = reduced_embeddings # safe this as it can be used for generating explanations again
 
             else:
                 raise RuntimeError(
@@ -177,9 +182,7 @@ class SegmentGuard:
 
         clustering_cols = [f"clustering_{i}" for i in range(partition_levels)]
         clustering_df = pd.DataFrame(
-            data=partitions,
-            columns=clustering_cols,
-            index=df.index
+            data=partitions, columns=clustering_cols, index=df.index
         )
 
         # Calculate fairness metrics on the clusters with fairlearn
@@ -315,7 +318,7 @@ class SegmentGuard:
         # First stage this will be only importance values!
 
         # Encode the data and keep track of conversions to keep interpretable
-        feature_groups = [] # list of indices for grouped features
+        feature_groups = []  # list of indices for grouped features
         current_feature_index = 0
         classification_data = np.zeros((len(df), 0))
         label_encoders = {}
@@ -343,8 +346,15 @@ class SegmentGuard:
                 classification_data = np.concatenate(
                     (classification_data, reduced_embeddings), axis=1
                 )
-                
-                feature_groups.append(list(range(current_feature_index, current_feature_index + reduced_embeddings.shape[1])))
+
+                feature_groups.append(
+                    list(
+                        range(
+                            current_feature_index,
+                            current_feature_index + reduced_embeddings.shape[1],
+                        )
+                    )
+                )
                 current_feature_index += reduced_embeddings.shape[1]
             else:
                 raise RuntimeError(
@@ -364,7 +374,7 @@ class SegmentGuard:
             y = np.zeros(len(issue_df))
             y[issue_indices_list] = 1
             clf = DecisionTreeClassifier(
-                max_depth=4, max_features=8
+                max_depth=3, max_features=4
             )  # keep the trees simple to not overfit
             clf.fit(classification_data, y)
 
@@ -382,21 +392,17 @@ class SegmentGuard:
                     agg_importances.append(importances[feature_group[0]])
             importances = np.array(agg_importances)
 
-            feature_order = np.argsort(importances)
+            feature_order = np.argsort(importances)[::-1]
             ordered_importances = importances[feature_order]
             ordered_features = np.array(features)[feature_order]
 
-            feature_importance_max = ordered_importances.max()
-            feature_importance_std = ordered_importances.std()
-            feature_mask = ordered_importances > (
-                feature_importance_max - feature_importance_std * 0.75
+            # if f1 > 0.7: # only add explanation if it is succicient to classify cluster?
+            importance_strings = []
+            for f, i in zip(ordered_features[:3], ordered_importances[:3]):
+                importance_strings.append(f"{f}, ({i:.2f})")
+            issue_df.loc[issue_indices_pandas, "explanation"] = ", ".join(
+                importance_strings
             )
-            causing_features = ordered_features[feature_mask]
-
-            if f1 > 0.7:
-                issue_df.loc[issue_indices_pandas, "explanation"] = " and ".join(
-                    causing_features
-                )
 
         return issue_df
 

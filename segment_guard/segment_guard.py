@@ -179,6 +179,7 @@ class SegmentGuard:
         clustering_df = pd.DataFrame(
             data=partitions,
             columns=clustering_cols,
+            index=df.index
         )
 
         # Calculate fairness metrics on the clusters with fairlearn
@@ -296,7 +297,8 @@ class SegmentGuard:
 
         print(f"Identified {num_issues} problematic segments.")
 
-        issue_df = pd.DataFrame(data=[-1] * len(df), columns=["issue"])
+        issue_df = pd.DataFrame(data=[-1] * len(df), columns=["issue"], index=df.index)
+        issue_df["issue"] = issue_df["issue"].astype(int)
 
         issue_index = 0
         for _, (group_df, clustering_col) in enumerate(zip(group_dfs, clustering_cols)):
@@ -350,16 +352,19 @@ class SegmentGuard:
                 )
 
         # Fit tree to generate feature importances
+        # TODO: Potentially replace with simpler univariate mechanism, see also spotlight relevance score
+        # TODO: Probably try shap or something similar
         issue_df["explanation"] = ""
 
         for issue in issue_df["issue"].unique():
-            if issue == "-1":  # Skip data points with no issues
+            if issue == -1:  # Skip data points with no issues
                 continue
-            issue_indices = np.where(issue_df["issue"] == issue)[0]
+            issue_indices_pandas = issue_df[issue_df["issue"] == issue].index
+            issue_indices_list = np.where(issue_df["issue"] == issue)[0]
             y = np.zeros(len(issue_df))
-            y[issue_indices] = 1
+            y[issue_indices_list] = 1
             clf = DecisionTreeClassifier(
-                max_depth=3, max_features=5
+                max_depth=4, max_features=8
             )  # keep the trees simple to not overfit
             clf.fit(classification_data, y)
 
@@ -372,7 +377,7 @@ class SegmentGuard:
             agg_importances = []
             for feature_group in feature_groups:
                 if len(feature_group) > 1:
-                    agg_importances.append(importances[feature_group].max())
+                    agg_importances.append(importances[feature_group].sum())
                 else:
                     agg_importances.append(importances[feature_group[0]])
             importances = np.array(agg_importances)
@@ -389,7 +394,7 @@ class SegmentGuard:
             causing_features = ordered_features[feature_mask]
 
             if f1 > 0.7:
-                issue_df.loc[issue_indices, "explanation"] = " and ".join(
+                issue_df.loc[issue_indices_pandas, "explanation"] = " and ".join(
                     causing_features
                 )
 

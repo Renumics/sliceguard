@@ -3,6 +3,7 @@ import numpy as np
 from jiwer import wer
 from renumics import spotlight
 from renumics.spotlight import Embedding
+from renumics.spotlight.analysis.typing import DataIssue
 
 from segment_guard import SegmentGuard
 
@@ -13,18 +14,18 @@ def wer_metric(y_true, y_pred):
 
 def test_segment_guard():
     df = pd.read_json("tests/predictions_embs.json")
-
+    df = df[df["accent"] != ""]
     sg = SegmentGuard()
     issue_df = sg.find_issues(
         df,
-        ["accent", "gender", "age", "up_votes", "sentence"],
+        ["accent", "sentence"],
         "sentence",
         "prediction",
         wer_metric,
         metric_mode="min",
-        feature_types={"age": "ordinal"},
-        feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
-        min_support = 200
+        # feature_types={"age": "ordinal"},
+        # feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
+        min_support = 50
     )
 
     df["age"] = df["age"].astype("category")
@@ -32,7 +33,16 @@ def test_segment_guard():
     df["accent"] = df["accent"].astype("category")
 
     df = pd.concat((df, issue_df), axis=1)
-    spotlight.show(df, dtype={"speaker_embedding": Embedding, "text_embedding_ann": Embedding, "text_embedding_pred": Embedding})
+
+    data_issues = []
+    for issue in issue_df["issue"].unique():
+        issue_rows = issue_df[issue_df["issue"] == issue].index.values.tolist()
+        issue_explanation = issue_df[issue_df["issue"] == issue].iloc[0]["explanation"]
+        data_issue = DataIssue(severity="warning", description=issue_explanation, rows=issue_rows)
+        data_issues.append(data_issue)
+
+
+    spotlight.show(df, dtype={"speaker_embedding": Embedding, "text_embedding_ann": Embedding, "text_embedding_pred": Embedding}, issues=data_issues)
 
     
 

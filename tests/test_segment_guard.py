@@ -63,7 +63,7 @@ def test_segment_guard():
             "text_embedding_ann": Embedding,
             "text_embedding_pred": Embedding,
         },
-        issues=np.array(data_issues)[data_issue_severity].tolist(),
+        issues=np.array(data_issues)[data_issue_order].tolist(),
     )
 
 

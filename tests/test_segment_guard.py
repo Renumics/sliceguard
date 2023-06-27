@@ -16,7 +16,7 @@ def test_segment_guard():
 
     sg = SegmentGuard()
     issue_df = sg.find_issues(
-        df.sample(20),
+        df.sample(50),
         ["accent", "gender", "age", "up_votes", "sentence"],
         "sentence",
         "prediction",
@@ -24,7 +24,7 @@ def test_segment_guard():
         metric_mode="min",
         feature_types={"age": "ordinal"},
         feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
-        min_support = 50
+        min_support = 5
     )
 
     df["age"] = df["age"].astype("category")

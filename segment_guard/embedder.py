@@ -1,1 +1,0 @@
-# Embedding support for text, images, audio

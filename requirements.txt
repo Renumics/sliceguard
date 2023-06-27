@@ -10,3 +10,4 @@ build
 twine
 transformers
 sentence-transformers
+umap-learn

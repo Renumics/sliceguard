@@ -11,7 +11,11 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import f1_score
 import umap
 
-from .embedding_utils import generate_text_embeddings
+from renumics import spotlight
+from renumics.spotlight import Embedding, Image
+from renumics.spotlight.analysis.typing import DataIssue
+
+from .embedding_utils import generate_text_embeddings, generate_image_embeddings
 
 
 class SegmentGuard:
@@ -133,10 +137,11 @@ class SegmentGuard:
                     or first_entry.lower().endswith(".jpeg")
                     or first_entry.lower().endswith(".png")
                 ):
-                    raise RuntimeError("Embedding generation not implemented yet.")
+                    embeddings = generate_image_embeddings(df[col].values)
                 else:  # Treat as text if nothing known
                     embeddings = generate_text_embeddings(df[col].values)
 
+                # TODO: Potentially filter out entries without valid embedding or replace with mean?
                 reduced_embeddings = umap.UMAP(
                     # n_neighbors=min(len(df) - 1, 30),
                     # min_dist=0.0,
@@ -371,7 +376,7 @@ class SegmentGuard:
         # Fit tree to generate feature importances
         # TODO: Potentially replace with simpler univariate mechanism, see also spotlight relevance score
         # TODO: Probably try shap or something similar
-        issue_df["explanation"] = ""
+        issue_df["issue_explanation"] = ""
 
         for issue in issue_df["issue"].unique():
             if issue == -1:  # Skip data points with no issues
@@ -407,10 +412,11 @@ class SegmentGuard:
             importance_strings = []
             for f, i in zip(ordered_features[:3], ordered_importances[:3]):
                 importance_strings.append(f"{f}, ({i:.2f})")
-            issue_df.loc[issue_indices_pandas, "explanation"] = ", ".join(
+            issue_df.loc[issue_indices_pandas, "issue_explanation"] = ", ".join(
                 importance_strings
             )
-
+        self._issue_df = issue_df
+        self._metric_mode = metric_mode
         return issue_df
 
         # df["age"] = df["age"].astype("category")
@@ -418,9 +424,48 @@ class SegmentGuard:
         # df["accent"] = df["accent"].astype("category")
         # spotlight.show(df, wait=True)
 
-    def report(self):
+    def report(self, df, spotlight_dtype=None):
         """
         Create an interactive report on the found issues in spotlight.
         """
-        pass
-        # spotlight.show(issues=[])
+        # Some basic checks to avoid somebody passes in something else
+        assert self._issue_df is not None
+        assert len(df) == len(self._issue_df)
+        assert all(df.index == self._issue_df.index)
+        
+
+        df = pd.concat((df, self._issue_df), axis=1)
+
+        data_issue_severity = []
+        data_issues = []
+        for issue in self._issue_df["issue"].unique():
+            if issue == -1:
+                continue
+            issue_rows = np.where(self._issue_df["issue"] == issue)[
+                0
+            ].tolist()  # Note: Has to be row index not pandas index!
+            issue_metric = self._issue_df[self._issue_df["issue"] == issue].iloc[0][
+                "issue_metric"
+            ]
+            issue_explanation = (
+                f"{issue_metric:.2f} -> "
+                + self._issue_df[self._issue_df["issue"] == issue].iloc[0][
+                    "issue_explanation"
+                ]
+            )
+
+            data_issue = DataIssue(
+                severity="warning", description=issue_explanation, rows=issue_rows
+            )
+            data_issues.append(data_issue)
+            data_issue_severity.append(issue_metric)
+
+        data_issue_order = np.argsort(data_issue_severity)
+        if self._metric_mode == "min":
+            data_issue_order = data_issue_order[::-1]
+
+        spotlight.show(
+            df,
+            dtype=spotlight_dtype,
+            issues=np.array(data_issues)[data_issue_order].tolist(),
+        )

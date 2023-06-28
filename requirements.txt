@@ -1,5 +1,6 @@
 pandas
 numpy
+requests
 jiwer
 fairlearn
 hnne
@@ -9,5 +10,8 @@ notebook
 build
 twine
 transformers
+datasets
 sentence-transformers
 umap-learn
+Pillow
+tqdm

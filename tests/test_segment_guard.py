@@ -4,13 +4,14 @@ import shutil
 from pathlib import Path
 from urllib.parse import urlparse
 
+from sklearn.metrics import accuracy_score
 import requests
 import pandas as pd
 import numpy as np
 from jiwer import wer
 import datasets
 from renumics import spotlight
-from renumics.spotlight import Embedding, Image
+from renumics.spotlight import Embedding, Image, Audio
 
 from segment_guard import SegmentGuard
 
@@ -101,7 +102,26 @@ def test_segment_guard_images():
 
     sg.report(df, spotlight_dtype={"image_path": Image})
 
+def test_segment_guard_audio():
+    dataset = datasets.load_dataset("renumics/dcase23-task2-enriched", "dev", split="all", streaming=False)
+    df = dataset.to_pandas().sample(200)
+    sg = SegmentGuard()
+    issue_df = sg.find_issues(
+        df,
+        ["path"],
+        "label",
+        "class",
+        accuracy_score,
+        metric_mode="max",
+        # feature_types={"age": "ordinal"},
+        # feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
+        min_support=5,
+        min_drop=0.1,
+    )
+    # spotlight.show(df, dtype={'path': spotlight.Audio})
+
 
 if __name__ == "__main__":
     # test_segment_guard_text()
-    test_segment_guard_images()
+    # test_segment_guard_images()
+    test_segment_guard_audio()

@@ -10,7 +10,9 @@ notebook
 build
 twine
 transformers
-datasets
+torch
+torchaudio
+datasets[audio]
 sentence-transformers
 umap-learn
 Pillow

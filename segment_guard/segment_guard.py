@@ -15,7 +15,7 @@ from renumics import spotlight
 from renumics.spotlight import Embedding, Image
 from renumics.spotlight.analysis.typing import DataIssue
 
-from .embedding_utils import generate_text_embeddings, generate_image_embeddings
+from .embedding_utils import generate_text_embeddings, generate_image_embeddings, generate_audio_embeddings
 
 
 class SegmentGuard:
@@ -131,7 +131,7 @@ class SegmentGuard:
                 if first_entry.lower().endswith(
                     ".wav"
                 ):  # TODO: Improve data type inference for raw data
-                    raise RuntimeError("Embedding generation not implemented yet.")
+                    embeddings = generate_audio_embeddings(df[col].values)
                 elif (
                     first_entry.lower().endswith(".jpg")
                     or first_entry.lower().endswith(".jpeg")

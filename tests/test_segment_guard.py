@@ -83,7 +83,7 @@ def test_segment_guard_images():
 
     df = df[~pd.isnull(df["transcript"])]
     df = df[~pd.isnull(df["explanation"])]
-    df = df.sample(100)
+    df = df.sample(500)
 
     sg = SegmentGuard()
     issue_df = sg.find_issues(
@@ -95,7 +95,7 @@ def test_segment_guard_images():
         metric_mode="min",
         # feature_types={"age": "ordinal"},
         # feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
-        min_support=3,
+        min_support=5,
         min_drop=0.08,
     )
 

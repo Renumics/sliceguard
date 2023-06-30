@@ -36,6 +36,7 @@ class SegmentGuard:
             str, Literal["raw", "nominal", "ordinal", "numerical"]
         ] = {},
         feature_orders: Dict[str, list] = {},
+        precomputed_embeddings = {},
         min_support=None,
         min_drop=None,
     ):
@@ -129,7 +130,10 @@ class SegmentGuard:
                 encoded_data = np.concatenate((encoded_data, ordinal_data), axis=1)
             elif feature_type == "raw":
                 first_entry = df[col].iloc[0]
-                if first_entry.lower().endswith(
+                if col in precomputed_embeddings: # use precomputed embeddings when given
+                    embeddings = precomputed_embeddings[col]
+                    assert len(embeddings) == len(df)
+                elif first_entry.lower().endswith(
                     ".wav"
                 ):  # TODO: Improve data type inference for raw data
                     embeddings = generate_audio_embeddings(df[col].values)

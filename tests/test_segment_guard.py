@@ -120,6 +120,23 @@ def test_segment_guard_audio():
         min_support=5,
         min_drop=0.1,
     )
+
+    computed_embeddings = sg.embeddings
+
+    issue_df = sg.find_issues(
+        df,
+        ["path"],
+        "label",
+        "class",
+        accuracy_score,
+        metric_mode="max",
+        # feature_types={"age": "ordinal"},
+        # feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
+        precomputed_embeddings=computed_embeddings,
+        min_support=5,
+        min_drop=0.1,
+    )
+
     sg.report(spotlight_dtype={"path": Audio})
     print(sg.embeddings)
 

@@ -1,3 +1,6 @@
+# Ignore test data
+test_data/
+
 # IDE specific ignores
 .vscode/
 

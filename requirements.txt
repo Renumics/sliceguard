@@ -1,5 +1,6 @@
 pandas
 numpy
+requests
 jiwer
 fairlearn
 hnne
@@ -8,3 +9,11 @@ fairlearn
 notebook
 build
 twine
+transformers
+torch
+torchaudio
+datasets[audio]
+sentence-transformers
+umap-learn
+Pillow
+tqdm

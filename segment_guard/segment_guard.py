@@ -92,6 +92,7 @@ class SegmentGuard:
         # Encode the features for clustering according to inferred types
         encoded_data = np.zeros((len(df), 0))
         prereduced_embeddings = {}
+        raw_embeddings = {}
         for col in features:
             feature_type = feature_types[col]
             if feature_type == "numerical":
@@ -132,14 +133,17 @@ class SegmentGuard:
                     ".wav"
                 ):  # TODO: Improve data type inference for raw data
                     embeddings = generate_audio_embeddings(df[col].values)
+                    raw_embeddings[col] = embeddings
                 elif (
                     first_entry.lower().endswith(".jpg")
                     or first_entry.lower().endswith(".jpeg")
                     or first_entry.lower().endswith(".png")
                 ):
                     embeddings = generate_image_embeddings(df[col].values)
+                    raw_embeddings[col] = embeddings
                 else:  # Treat as text if nothing known
                     embeddings = generate_text_embeddings(df[col].values)
+                    raw_embeddings[col] = embeddings
 
                 # TODO: Potentially filter out entries without valid embedding or replace with mean?
                 reduced_embeddings = umap.UMAP(
@@ -417,6 +421,9 @@ class SegmentGuard:
             )
         self._issue_df = issue_df
         self._metric_mode = metric_mode
+        self._df = df
+        self.embeddings = raw_embeddings
+
         return issue_df
 
         # df["age"] = df["age"].astype("category")
@@ -424,17 +431,17 @@ class SegmentGuard:
         # df["accent"] = df["accent"].astype("category")
         # spotlight.show(df, wait=True)
 
-    def report(self, df, spotlight_dtype=None):
+    def report(self, spotlight_dtype=None):
         """
         Create an interactive report on the found issues in spotlight.
         """
-        # Some basic checks to avoid somebody passes in something else
+        # Some basic checks
         assert self._issue_df is not None
-        assert len(df) == len(self._issue_df)
-        assert all(df.index == self._issue_df.index)
+        assert len(self._df) == len(self._issue_df)
+        assert all(self._df.index == self._issue_df.index)
         
 
-        df = pd.concat((df, self._issue_df), axis=1)
+        df = pd.concat((self._df, self._issue_df), axis=1)
 
         data_issue_severity = []
         data_issues = []

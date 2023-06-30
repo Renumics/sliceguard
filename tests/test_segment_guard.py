@@ -44,7 +44,6 @@ def test_segment_guard():
     df["accent"] = df["accent"].astype("category")
 
     sg.report(
-        df,
         spotlight_dtype={
             "speaker_embedding": Embedding,
             "text_embedding_ann": Embedding,
@@ -100,10 +99,13 @@ def test_segment_guard_images():
         min_drop=0.08,
     )
 
-    sg.report(df, spotlight_dtype={"image_path": Image})
+    sg.report(spotlight_dtype={"image_path": Image})
+
 
 def test_segment_guard_audio():
-    dataset = datasets.load_dataset("renumics/dcase23-task2-enriched", "dev", split="all", streaming=False)
+    dataset = datasets.load_dataset(
+        "renumics/dcase23-task2-enriched", "dev", split="all", streaming=False
+    )
     df = dataset.to_pandas().sample(200)
     sg = SegmentGuard()
     issue_df = sg.find_issues(
@@ -118,7 +120,8 @@ def test_segment_guard_audio():
         min_support=5,
         min_drop=0.1,
     )
-    sg.report(df, spotlight_dtype={"path": Audio})
+    sg.report(spotlight_dtype={"path": Audio})
+    print(sg.embeddings)
 
 
 if __name__ == "__main__":

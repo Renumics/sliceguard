@@ -20,6 +20,12 @@ class SegmentGuard:
     The main class for detecting issues in your data
     """
 
+    def generate_summary_report(data, raw_data, precomputed_embeddings, features, metadata):
+        """
+        Generate a report on biases, potential underrepresented populations, problematic features, hidden stratification etc.
+        """
+        raise RuntimeError("This functionality has not been implemented yet.")
+
     # TODO: Introduce control features to account for expected variations
     def find_issues(
         self,

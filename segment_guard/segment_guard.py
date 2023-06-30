@@ -437,9 +437,10 @@ class SegmentGuard:
         # df["accent"] = df["accent"].astype("category")
         # spotlight.show(df, wait=True)
 
-    def report(self, spotlight_dtype=None):
+    def report(self, spotlight_dtype: Dict[str, spotlight.dtypes.base.DType]={}):
         """
         Create an interactive report on the found issues in spotlight.
+        :param spotlight_dtype: Define a datatype mapping for the interactive spotlight report. Will be passed to dtypes parameter of spotlight.show.
         """
         # Some basic checks
         assert self._issue_df is not None

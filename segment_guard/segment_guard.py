@@ -15,6 +15,7 @@ from renumics import spotlight
 from renumics.spotlight import Embedding, Image
 from renumics.spotlight.analysis.typing import DataIssue
 
+from .utils import infer_feature_types
 from .embedding_utils import generate_text_embeddings, generate_image_embeddings, generate_audio_embeddings
 
 
@@ -59,33 +60,8 @@ class SegmentGuard:
         assert (all([f in data.columns for f in features])) and (y in data.columns) and (y_pred in data.columns) # check presence of all columns
         df = data  # just rename the variable for shorter naming
 
-        # df = df.reset_index()
-
         # Try to infer the column dtypes
-        dataset_length = len(df)
-
-        for col in features:
-            col_dtype = df[col].dtype
-
-            if col_dtype == "object" and col not in feature_types:
-                num_unique_values = len(df[col].unique())
-                if num_unique_values / dataset_length > 0.5:
-                    logging.warning(
-                        f"Feature {col} was inferred as referring to raw data. If this is not the case, please specify in feature_types!"
-                    )
-                    feature_types[col] = "raw"
-                else:
-                    logging.warning(
-                        f"Feature {col} was inferred as being categorical. Will be treated as nominal by default. If ordinal specify in feature_types and feature_orders!"
-                    )
-                    feature_types[col] = "nominal"
-            elif col not in feature_types:
-                logging.warning(
-                    f"Feature {col} will be treated as numerical value. You can override this by specifying feature_types."
-                )
-                feature_types[col] = "numerical"
-            else:
-                assert feature_types[col] in ("raw", "nominal", "ordinal", "numerical")
+        feature_types = infer_feature_types(features, feature_types, df)
 
         # print(feature_types)
 

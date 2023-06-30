@@ -118,7 +118,7 @@ def test_segment_guard_audio():
         min_support=5,
         min_drop=0.1,
     )
-    # spotlight.show(df, dtype={'path': spotlight.Audio})
+    sg.report(df, spotlight_dtype={"path": Audio})
 
 
 if __name__ == "__main__":

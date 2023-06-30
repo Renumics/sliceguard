@@ -56,9 +56,8 @@ class SegmentGuard:
         :min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
         """
 
-        df = data[
-            list(set(features + [y_pred, y]))
-        ]  # if y or y_pred is also in features
+        assert (all([f in data.columns for f in features])) and (y in data.columns) and (y_pred in data.columns) # check presence of all columns
+        df = data  # just rename the variable for shorter naming
 
         # df = df.reset_index()
 

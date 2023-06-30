@@ -12,7 +12,7 @@ from sklearn.metrics import f1_score
 from renumics import spotlight
 from renumics.spotlight.analysis.typing import DataIssue
 
-from .utils import infer_feature_types
+from .utils import infer_feature_types, encode_normalize_features
 
 
 class SegmentGuard:
@@ -62,7 +62,7 @@ class SegmentGuard:
         # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant
 
         # Encode the features for clustering according to inferred types
-        encoded_data, prereduced_embeddings, raw_embeddings = self.encode_normalize_features(features, feature_types, feature_orders, precomputed_embeddings, df)
+        encoded_data, prereduced_embeddings, raw_embeddings = encode_normalize_features(features, feature_types, feature_orders, precomputed_embeddings, df)
 
         # Perform detection of problematic clusters based on the given features
         # 1. A hierarchical clustering is performed and metrics are calculated for all hierarchies
@@ -156,8 +156,7 @@ class SegmentGuard:
                 "issue",
             ] = True
 
-            # Check overlap with parent cluster and calculate how much drop this cluster causes
-            # Unmark parent if drop shows mostly on this level
+            # Unmark parent cluster if drop shows mostly on this level
             if previous_group_df is not None:
                 for cluster, row in group_df.iterrows():
                     group_entries = clustering_df[
@@ -168,21 +167,6 @@ class SegmentGuard:
                         == group_entries[previous_clustering_col].values
                     ).all()
                     parent_cluster = group_entries[previous_clustering_col].values[0]
-                    parent_cluster_info = previous_group_df.loc[parent_cluster]
-
-                    child_clusters = clustering_df[
-                        clustering_df[previous_clustering_col] == parent_cluster
-                    ][clustering_col].unique()
-                    # print(child_clusters)
-                    num_child_clusters = len(child_clusters)
-                    child_cluster_drops = []
-                    child_cluster_supports = []
-                    for child_cluster in child_clusters:
-                        child_cluster_info = group_df.loc[child_cluster]
-                        child_cluster_drops.append(child_cluster_info["drop"])
-                        child_cluster_supports.append(child_cluster_info["support"])
-                    # print(child_cluster_drops)
-                    # print(child_cluster_supports)
 
                     if (
                         row["support"] > min_support and row["drop"] > min_drop

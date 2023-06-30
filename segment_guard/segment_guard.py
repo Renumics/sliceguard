@@ -36,9 +36,9 @@ class SegmentGuard:
             str, Literal["raw", "nominal", "ordinal", "numerical"]
         ] = {},
         feature_orders: Dict[str, list] = {},
-        precomputed_embeddings = {},
-        min_support=None,
-        min_drop=None,
+        precomputed_embeddings: Dict[str, np.array] = {},
+        min_support: int=None,
+        min_drop: float=None,
     ):
         """
         Find segments that are classified badly by your model.
@@ -51,7 +51,9 @@ class SegmentGuard:
         :param metric_mode: What do you optimize your metric for? max is the right choice for accuracy while e.g. min is good for regression error.
         :param feature_types: Specify how your feature should be treated in encoding and normalizing.
         :param feature_orders: If your feature is ordinal, specify the order of that should be used for encoding. This is required for EVERY ordinal feature.
-
+        :param precomputed_embeddings: Supply precomputed embeddings for raw columns. E.g. if repeatedly running checks on your data.
+        :min_support: Minimum support for clusters that are listed as issues. If you are more looking towards outliers choose small values, if you target biases choose higher values.
+        :min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
         """
 
         df = data[

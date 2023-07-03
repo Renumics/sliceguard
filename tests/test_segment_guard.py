@@ -20,7 +20,7 @@ def wer_metric(y_true, y_pred):
     return np.mean([wer(s_y, s_pred) for s_y, s_pred in zip(y_true, y_pred)])
 
 
-def test_segment_guard():
+def test_segment_guard_text():
     df = pd.read_json("tests/predictions_embs.json")
     df = df[df["accent"] != ""]
     df = df[df["age"] != ""]
@@ -28,14 +28,14 @@ def test_segment_guard():
     sg = SegmentGuard()
     issue_df = sg.find_issues(
         df,
-        ["sentence", "accent", "age"],
+        ["sentence", "accent", "age", "gender"],
         "sentence",
         "prediction",
         wer_metric,
         metric_mode="min",
-        # feature_types={"age": "ordinal"},
-        # feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
-        min_support=10,
+        feature_types={"age": "ordinal"},
+        feature_orders={"age": ["teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
+        min_support=70,
         min_drop=0.08,
     )
 
@@ -138,10 +138,9 @@ def test_segment_guard_audio():
     )
 
     sg.report(spotlight_dtype={"path": Audio})
-    print(sg.embeddings)
 
 
 if __name__ == "__main__":
-    # test_segment_guard_text()
+    test_segment_guard_text()
     # test_segment_guard_images()
-    test_segment_guard_audio()
+    # test_segment_guard_audio()

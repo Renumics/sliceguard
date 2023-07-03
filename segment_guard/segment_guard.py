@@ -1,13 +1,7 @@
-import logging
 from typing import List, Literal, Dict, Callable
 
 import pandas as pd
 import numpy as np
-from fairlearn.metrics import MetricFrame
-from hnne import HNNE
-from sklearn.preprocessing import LabelEncoder
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import f1_score
 
 from renumics import spotlight
 from renumics.spotlight.analysis.typing import DataIssue
@@ -168,7 +162,7 @@ class SegmentGuard:
             )
 
             data_issue = DataIssue(
-                severity="warning", description=issue_explanation, rows=issue_rows
+                severity="medium", title=issue_explanation, description=issue_explanation, rows=issue_rows
             )
             data_issues.append(data_issue)
             data_issue_severity.append(issue_metric)

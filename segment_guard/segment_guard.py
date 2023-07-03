@@ -21,7 +21,9 @@ class SegmentGuard:
     The main class for detecting issues in your data
     """
 
-    def generate_summary_report(data, raw_data, precomputed_embeddings, features, metadata):
+    def generate_summary_report(
+        data, raw_data, precomputed_embeddings, features, metadata
+    ):
         """
         Generate a report on biases, potential underrepresented populations, problematic features, hidden stratification etc.
         """
@@ -41,8 +43,8 @@ class SegmentGuard:
         ] = {},
         feature_orders: Dict[str, list] = {},
         precomputed_embeddings: Dict[str, np.array] = {},
-        min_support: int=None,
-        min_drop: float=None,
+        min_support: int = None,
+        min_drop: float = None,
     ):
         """
         Find segments that are classified badly by your model.
@@ -60,7 +62,11 @@ class SegmentGuard:
         :min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
         """
 
-        assert (all([f in data.columns for f in features])) and (y in data.columns) and (y_pred in data.columns) # check presence of all columns
+        assert (
+            (all([f in data.columns for f in features]))
+            and (y in data.columns)
+            and (y_pred in data.columns)
+        )  # check presence of all columns
         df = data  # just rename the variable for shorter naming
 
         # Try to infer the column dtypes
@@ -69,82 +75,23 @@ class SegmentGuard:
         # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant
 
         # Encode the features for clustering according to inferred types
-        encoded_data, prereduced_embeddings, raw_embeddings = encode_normalize_features(features, feature_types, feature_orders, precomputed_embeddings, df)
+        encoded_data, prereduced_embeddings, raw_embeddings = encode_normalize_features(
+            features, feature_types, feature_orders, precomputed_embeddings, df
+        )
 
         # Perform detection of problematic clusters based on the given features
         # 1. A hierarchical clustering is performed and metrics are calculated for all hierarchies
         # 2. hierarchy level that is most indicative of a real problem is then determined
         # 3. the reason for the problem e.g. feature combination or rule that is characteristic for the cluster is determined.
 
-        mfs, clustering_df, clustering_cols, clustering_metric_cols = generate_metric_frames(encoded_data, df, y, y_pred, metric)
+        (
+            mfs,
+            clustering_df,
+            clustering_cols,
+            clustering_metric_cols,
+        ) = generate_metric_frames(encoded_data, df, y, y_pred, metric)
 
-        # Determine the hierarchy levels that most likely capture real problems
-        # TODO: Determine if these values should be chosen adaptively, potentially differing on every level
-        group_dfs = []
-
-        if min_drop is None:
-            min_drop = 0.1 * mfs[0].overall.values[0]
-        if min_support is None:
-            min_support = round(max(0.0025 * len(df), 5))
-        print(
-            f"Using {min_support} as minimum support for determining problematic clusters."
-        )
-        print(f"Using {min_drop} as minimum drop for determining problematic clusters.")
-
-        previous_group_df = None
-        previous_clustering_col = None
-        for mf, clustering_col in zip(mfs, clustering_cols):
-            # Calculate cluster support
-            drops = (
-                mf.overall.values[0] - mf.by_group.values
-                if metric_mode == "max"
-                else mf.by_group.values - mf.overall.values[0]
-            )
-            supports = [
-                (clustering_df[clustering_col] == cluster).sum()
-                for cluster in mf.by_group.index
-            ]
-            group_df = pd.concat(
-                (
-                    mf.by_group,
-                    pd.DataFrame(data=supports, columns=["support"]),
-                    pd.DataFrame(data=drops, columns=["drop"]),
-                ),
-                axis=1,
-            )
-
-            # print(group_df)
-
-            group_df["issue"] = False
-
-            group_df.loc[
-                (group_df["drop"] > min_drop) & (group_df["support"] > min_support),
-                "issue",
-            ] = True
-
-            # Unmark parent cluster if drop shows mostly on this level
-            if previous_group_df is not None:
-                for cluster, row in group_df.iterrows():
-                    group_entries = clustering_df[
-                        clustering_df[clustering_col] == cluster
-                    ]
-                    assert (
-                        group_entries[previous_clustering_col].values[0]
-                        == group_entries[previous_clustering_col].values
-                    ).all()
-                    parent_cluster = group_entries[previous_clustering_col].values[0]
-
-                    if (
-                        row["support"] > min_support and row["drop"] > min_drop
-                    ):  # TODO Verify this rule makes sense, could cause larger clusters to be discarded because of one also bad subcluster
-                        previous_group_df.loc[parent_cluster, "issue"] = False
-                    else:
-                        group_df.loc[cluster, "issue"] = False
-
-            group_dfs.append(group_df)
-
-            previous_group_df = group_df
-            previous_clustering_col = clustering_col
+        group_dfs = detect_issues(mfs, clustering_df, clustering_cols, min_drop, min_support, metric_mode)
 
         num_issues = np.sum([group_df["issue"].sum() for group_df in group_dfs])
 
@@ -272,7 +219,7 @@ class SegmentGuard:
         # df["accent"] = df["accent"].astype("category")
         # spotlight.show(df, wait=True)
 
-    def report(self, spotlight_dtype: Dict[str, spotlight.dtypes.base.DType]={}):
+    def report(self, spotlight_dtype: Dict[str, spotlight.dtypes.base.DType] = {}):
         """
         Create an interactive report on the found issues in spotlight.
         :param spotlight_dtype: Define a datatype mapping for the interactive spotlight report. Will be passed to dtypes parameter of spotlight.show.
@@ -281,7 +228,6 @@ class SegmentGuard:
         assert self._issue_df is not None
         assert len(self._df) == len(self._issue_df)
         assert all(self._df.index == self._issue_df.index)
-        
 
         df = pd.concat((self._df, self._issue_df), axis=1)
 

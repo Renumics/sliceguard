@@ -87,7 +87,9 @@ class SegmentGuard:
             clustering_metric_cols,
         ) = generate_metric_frames(encoded_data, df, y, y_pred, metric)
 
-        group_dfs = detect_issues(mfs, clustering_df, clustering_cols, min_drop, min_support, metric_mode)
+        group_dfs = detect_issues(
+            mfs, clustering_df, clustering_cols, min_drop, min_support, metric_mode
+        )
 
         num_issues = np.sum([group_df["issue"].sum() for group_df in group_dfs])
 
@@ -117,19 +119,16 @@ class SegmentGuard:
         # Derive rules that are characteristic for each identified problem segment
         # This is done to help understanding of the problem reason
         # First stage this will be only importance values!
-        issue_df = explain_clusters(features, feature_types, issue_df, df, prereduced_embeddings)
-       
+        issue_df = explain_clusters(
+            features, feature_types, issue_df, df, prereduced_embeddings
+        )
+
         self._issue_df = issue_df
         self._metric_mode = metric_mode
         self._df = df
         self.embeddings = raw_embeddings
 
         return issue_df
-
-        # df["age"] = df["age"].astype("category")
-        # df["gender"] = df["gender"].astype("category")
-        # df["accent"] = df["accent"].astype("category")
-        # spotlight.show(df, wait=True)
 
     def report(self, spotlight_dtype: Dict[str, spotlight.dtypes.base.DType] = {}):
         """
@@ -162,7 +161,10 @@ class SegmentGuard:
             )
 
             data_issue = DataIssue(
-                severity="medium", title=issue_explanation, description=issue_explanation, rows=issue_rows
+                severity="medium",
+                title=issue_explanation,
+                description=issue_explanation,
+                rows=issue_rows,
             )
             data_issues.append(data_issue)
             data_issue_severity.append(issue_metric)

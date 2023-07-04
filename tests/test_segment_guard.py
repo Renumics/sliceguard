@@ -24,6 +24,9 @@ def test_segment_guard_text():
     df = pd.read_json("tests/predictions.json")
     df = df[df["accent"] != ""]
     df = df[df["age"] != ""]
+    df = df[df["gender"] != ""]
+
+    df["audio"] = "tests/" + df["audio"]
 
     sg = SegmentGuard()
     issue_df = sg.find_issues(
@@ -34,7 +37,19 @@ def test_segment_guard_text():
         wer_metric,
         metric_mode="min",
         feature_types={"age": "ordinal"},
-        feature_orders={"age": ["teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
+        feature_orders={
+            "age": [
+                "teens",
+                "twenties",
+                "thirties",
+                "fourties",
+                "fifties",
+                "sixties",
+                "seventies",
+                "eighties",
+                "nineties",
+            ]
+        },
         min_support=70,
         min_drop=0.08,
     )
@@ -44,11 +59,7 @@ def test_segment_guard_text():
     df["accent"] = df["accent"].astype("category")
 
     sg.report(
-        spotlight_dtype={
-            "speaker_embedding": Embedding,
-            "text_embedding_ann": Embedding,
-            "text_embedding_pred": Embedding,
-        },
+        spotlight_dtype={"audio": Audio},
     )
 
 

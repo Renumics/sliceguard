@@ -21,7 +21,7 @@ def wer_metric(y_true, y_pred):
 
 
 def test_segment_guard_text():
-    df = pd.read_json("tests/predictions_embs.json")
+    df = pd.read_json("tests/predictions.json")
     df = df[df["accent"] != ""]
     df = df[df["age"] != ""]
 

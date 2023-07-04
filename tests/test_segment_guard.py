@@ -50,7 +50,7 @@ def test_segment_guard_text():
                 "nineties",
             ]
         },
-        min_support=70,
+        min_support=10,
         min_drop=0.08,
     )
 

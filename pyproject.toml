@@ -15,7 +15,7 @@ classifiers = [
 ]
 dependencies = [
   "hnne >= 0.1.8",
-  "numpy >= 1.24.0",
+  "numpy>=1.17.2",
   "pandas >= 2.0.0",
   "fairlearn >= 0.8.0",
   "scikit-learn >= 1.2.2",

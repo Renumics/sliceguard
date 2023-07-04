@@ -28,7 +28,7 @@ def test_segment_guard_text():
     sg = SegmentGuard()
     issue_df = sg.find_issues(
         df,
-        ["sentence", "accent", "age", "gender"],
+        ["accent", "age", "gender"],
         "sentence",
         "prediction",
         wer_metric,

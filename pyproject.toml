@@ -1,6 +1,6 @@
 [project]
-name = "segment-guard"
-version = "0.0.2"
+name = "slice-guard"
+version = "0.0.3"
 authors = [
   { name="Renumics GmbH", email="info@renumics.com"},
   { name="Daniel Klitzke", email="daniel.klitzke@renumics.com"}
@@ -30,8 +30,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/Renumics/segment-guard"
-"Bug Tracker" = "https://github.com/Renumics/segment-guard/issues"
+"Homepage" = "https://github.com/Renumics/slice-guard"
+"Bug Tracker" = "https://github.com/Renumics/slice-guard/issues"
 
 [tool.setuptools]
-packages = ["segment_guard"]
+packages = ["slice_guard"]

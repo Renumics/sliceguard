@@ -11,7 +11,7 @@ from .detection import generate_metric_frames, detect_issues
 from .explanation import explain_clusters
 
 
-class SegmentGuard:
+class SliceGuard:
     """
     The main class for detecting issues in your data
     """
@@ -42,7 +42,7 @@ class SegmentGuard:
         min_drop: float = None,
     ):
         """
-        Find segments that are classified badly by your model.
+        Find slices that are classified badly by your model.
 
         :param data: A pandas dataframe containing your data.
         :param features: A list of columns that contains features to feed into your model but also metadata.
@@ -93,7 +93,7 @@ class SegmentGuard:
 
         num_issues = np.sum([group_df["issue"].sum() for group_df in group_dfs])
 
-        print(f"Identified {num_issues} problematic segments.")
+        print(f"Identified {num_issues} problematic slices.")
 
         # Construct the issue dataframe that is returned by this method
         issue_df = pd.DataFrame(data=[-1] * len(df), columns=["issue"], index=df.index)
@@ -116,7 +116,7 @@ class SegmentGuard:
                 issue_df.loc[issue_indices, "issue_metric"] = issue_metric
                 issue_index += 1
 
-        # Derive rules that are characteristic for each identified problem segment
+        # Derive rules that are characteristic for each identified problem slice
         # This is done to help understanding of the problem reason
         # First stage this will be only importance values!
         issue_df = explain_clusters(

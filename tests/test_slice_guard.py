@@ -13,14 +13,14 @@ import datasets
 from renumics import spotlight
 from renumics.spotlight import Embedding, Image, Audio
 
-from segment_guard import SegmentGuard
+from slice_guard import SliceGuard
 
 
 def wer_metric(y_true, y_pred):
     return np.mean([wer(s_y, s_pred) for s_y, s_pred in zip(y_true, y_pred)])
 
 
-def test_segment_guard_text():
+def test_slice_guard_text():
     df = pd.read_json("tests/predictions.json")
     df = df[df["accent"] != ""]
     df = df[df["age"] != ""]
@@ -28,7 +28,7 @@ def test_segment_guard_text():
 
     df["audio"] = "tests/" + df["audio"]
 
-    sg = SegmentGuard()
+    sg = SliceGuard()
     issue_df = sg.find_issues(
         df,
         ["accent", "age", "gender"],
@@ -63,7 +63,7 @@ def test_segment_guard_text():
     )
 
 
-def test_segment_guard_images():
+def test_slice_guard_images():
     dataset = datasets.load_dataset("olivierdehaene/xkcd", split="train")
     df = dataset.to_pandas()
     image_urls = df["image_url"]
@@ -96,7 +96,7 @@ def test_segment_guard_images():
     df = df[~pd.isnull(df["explanation"])]
     df = df.sample(500)
 
-    sg = SegmentGuard()
+    sg = SliceGuard()
     issue_df = sg.find_issues(
         df,
         ["image_path"],
@@ -113,12 +113,12 @@ def test_segment_guard_images():
     sg.report(spotlight_dtype={"image_path": Image})
 
 
-def test_segment_guard_audio():
+def test_slice_guard_audio():
     dataset = datasets.load_dataset(
         "renumics/dcase23-task2-enriched", "dev", split="all", streaming=False
     )
     df = dataset.to_pandas().sample(200)
-    sg = SegmentGuard()
+    sg = SliceGuard()
     issue_df = sg.find_issues(
         df,
         ["path"],
@@ -152,6 +152,6 @@ def test_segment_guard_audio():
 
 
 if __name__ == "__main__":
-    test_segment_guard_text()
-    # test_segment_guard_images()
-    # test_segment_guard_audio()
+    test_slice_guard_text()
+    # test_slice_guard_images()
+    # test_slice_guard_audio()

@@ -7,11 +7,11 @@ from urllib.parse import urlparse
 from sklearn.metrics import accuracy_score
 import requests
 import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
 from jiwer import wer
 import datasets
-from renumics import spotlight
-from renumics.spotlight import Embedding, Image, Audio
+from renumics.spotlight import Image, Audio
 
 from sliceguard import SliceGuard
 
@@ -22,6 +22,17 @@ def wer_metric(y_true, y_pred):
 
 def test_sliceguard_text():
     df = pd.read_json("tests/predictions.json")
+
+    # df = df.drop(
+    #     columns=[
+    #         "up_votes",
+    #         "down_votes",
+    #         "locale",
+    #         "segment",
+    #         "variant",
+    #     ]
+    # )
+
     df = df[df["accent"] != ""]
     df = df[df["age"] != ""]
     df = df[df["gender"] != ""]
@@ -31,7 +42,7 @@ def test_sliceguard_text():
     sg = SliceGuard()
     issue_df = sg.find_issues(
         df,
-        ["accent", "age", "gender"],
+        ["age"],
         "sentence",
         "prediction",
         wer_metric,
@@ -50,8 +61,8 @@ def test_sliceguard_text():
                 "nineties",
             ]
         },
-        min_support=10,
-        min_drop=0.08,
+        min_support=3,
+        min_drop=0.01,
     )
 
     df["age"] = df["age"].astype("category")

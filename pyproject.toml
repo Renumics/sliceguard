@@ -1,11 +1,11 @@
 [project]
-name = "slice-guard"
+name = "sliceguard"
 version = "0.0.3"
 authors = [
   { name="Renumics GmbH", email="info@renumics.com"},
   { name="Daniel Klitzke", email="daniel.klitzke@renumics.com"}
 ]
-description = "A library for detecting critical data segments in structured and unstructured data based on features, metadata and model predictions."
+description = "A library for detecting critical data slices in structured and unstructured data based on features, metadata and model predictions."
 readme = "README.md"
 requires-python = ">=3.7"
 classifiers = [
@@ -30,8 +30,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/Renumics/slice-guard"
-"Bug Tracker" = "https://github.com/Renumics/slice-guard/issues"
+"Homepage" = "https://github.com/Renumics/sliceguard"
+"Bug Tracker" = "https://github.com/Renumics/sliceguard/issues"
 
 [tool.setuptools]
-packages = ["slice_guard"]
+packages = ["sliceguard"]

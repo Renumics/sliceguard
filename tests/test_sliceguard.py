@@ -13,14 +13,14 @@ import datasets
 from renumics import spotlight
 from renumics.spotlight import Embedding, Image, Audio
 
-from slice_guard import SliceGuard
+from sliceguard import SliceGuard
 
 
 def wer_metric(y_true, y_pred):
     return np.mean([wer(s_y, s_pred) for s_y, s_pred in zip(y_true, y_pred)])
 
 
-def test_slice_guard_text():
+def test_sliceguard_text():
     df = pd.read_json("tests/predictions.json")
     df = df[df["accent"] != ""]
     df = df[df["age"] != ""]
@@ -63,7 +63,7 @@ def test_slice_guard_text():
     )
 
 
-def test_slice_guard_images():
+def test_sliceguard_images():
     dataset = datasets.load_dataset("olivierdehaene/xkcd", split="train")
     df = dataset.to_pandas()
     image_urls = df["image_url"]
@@ -113,7 +113,7 @@ def test_slice_guard_images():
     sg.report(spotlight_dtype={"image_path": Image})
 
 
-def test_slice_guard_audio():
+def test_sliceguard_audio():
     dataset = datasets.load_dataset(
         "renumics/dcase23-task2-enriched", "dev", split="all", streaming=False
     )
@@ -152,6 +152,6 @@ def test_slice_guard_audio():
 
 
 if __name__ == "__main__":
-    test_slice_guard_text()
-    # test_slice_guard_images()
-    # test_slice_guard_audio()
+    test_sliceguard_text()
+    # test_sliceguard_images()
+    # test_sliceguard_audio()

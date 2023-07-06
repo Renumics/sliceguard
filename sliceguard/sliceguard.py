@@ -24,8 +24,6 @@ class SliceGuard:
         """
         raise RuntimeError("This functionality has not been implemented yet.")
 
-    
-
 
     # TODO: Introduce control features to account for expected variations
     def find_issues(
@@ -91,7 +89,7 @@ class SliceGuard:
         ) = generate_metric_frames(encoded_data, df, y, y_pred, metric)
 
         if len(mfs) > 0:
-            overall_metric = mfs[0].overall
+            overall_metric = mfs[0].overall.values[0]
             print(f"The overall metric value is {overall_metric}")
 
         group_dfs = detect_issues(

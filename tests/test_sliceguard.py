@@ -42,7 +42,7 @@ def test_sliceguard_text():
     sg = SliceGuard()
     issue_df = sg.find_issues(
         df,
-        ["age"],
+        ["sentence"],
         "sentence",
         "prediction",
         wer_metric,
@@ -61,13 +61,15 @@ def test_sliceguard_text():
                 "nineties",
             ]
         },
-        min_support=3,
-        min_drop=0.01,
+        min_support=10,
+        min_drop=0.04,
     )
 
-    df["age"] = df["age"].astype("category")
-    df["gender"] = df["gender"].astype("category")
-    df["accent"] = df["accent"].astype("category")
+    print(issue_df)
+
+    # df["age"] = df["age"].astype("category")
+    # df["gender"] = df["gender"].astype("category")
+    # df["accent"] = df["accent"].astype("category")
 
     sg.report(
         spotlight_dtype={"audio": Audio},

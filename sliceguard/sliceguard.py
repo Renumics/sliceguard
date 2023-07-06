@@ -2,6 +2,7 @@ from typing import List, Literal, Dict, Callable
 
 import pandas as pd
 import numpy as np
+import plotly.express as px
 
 from renumics import spotlight
 from renumics.spotlight.analysis.typing import DataIssue
@@ -15,15 +16,6 @@ class SliceGuard:
     """
     The main class for detecting issues in your data
     """
-
-    def generate_summary_report(
-        data, raw_data, precomputed_embeddings, features, metadata
-    ):
-        """
-        Generate a report on biases, potential underrepresented populations, problematic features, hidden stratification etc.
-        """
-        raise RuntimeError("This functionality has not been implemented yet.")
-
 
     # TODO: Introduce control features to account for expected variations
     def find_issues(
@@ -131,6 +123,8 @@ class SliceGuard:
         )
 
         self._issue_df = issue_df
+        self._clustering_df = clustering_df
+        self._clustering_cols = clustering_cols
         self._metric_mode = metric_mode
         self._df = df
         self.embeddings = raw_embeddings
@@ -185,3 +179,20 @@ class SliceGuard:
             dtype=spotlight_dtype,
             issues=np.array(data_issues)[data_issue_order].tolist(),
         )
+
+    def _plot_clustering_overview(self):
+        """
+        Debugging method to get an overview on the last clustering structure.
+        """
+        plotting_df = pd.concat((self._clustering_df, self._issue_df), axis=1)
+        plotting_df["is_issue"] = plotting_df["issue"] != -1
+        plotting_df["issue_metric_str"] = plotting_df["issue_metric"].apply(lambda x: '{0:.2f}'.format(x) if not np.isnan(x) else "")
+        fig = px.treemap(
+            plotting_df,
+            path=self._clustering_cols,
+            color="is_issue",
+            color_discrete_map={"(?)": "lightgrey", True: "gold", False: "darkblue"},
+            custom_data="issue_metric_str"
+        )
+        fig.data[0].texttemplate = "%{customdata[0]}"
+        fig.show()

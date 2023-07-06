@@ -24,14 +24,9 @@ def test_sliceguard_text():
     df = pd.read_json("tests/predictions.json")
 
     # df = df.drop(
-    #     columns=[
-    #         "up_votes",
-    #         "down_votes",
-    #         "locale",
-    #         "segment",
-    #         "variant",
-    #     ]
+    #     columns=["up_votes", "down_votes", "locale", "segment", "variant", "audio"]
     # )
+    # df.sample(500).to_json("example_data.json", orient="records")
 
     df = df[df["accent"] != ""]
     df = df[df["age"] != ""]
@@ -69,9 +64,7 @@ def test_sliceguard_text():
     # df["gender"] = df["gender"].astype("category")
     # df["accent"] = df["accent"].astype("category")
 
-    sg.report(
-        spotlight_dtype={"audio": Audio}
-    )
+    sg.report(spotlight_dtype={"audio": Audio})
 
     # sg._plot_clustering_overview()
 

@@ -6,6 +6,7 @@ import plotly.express as px
 
 from renumics import spotlight
 from renumics.spotlight.analysis.typing import DataIssue
+from renumics.spotlight import layout
 
 from .utils import infer_feature_types, encode_normalize_features
 from .detection import generate_metric_frames, detect_issues
@@ -83,8 +84,6 @@ class SliceGuard:
         if len(mfs) > 0:
             overall_metric = mfs[0].overall.values[0]
             print(f"The overall metric value is {overall_metric}")
-
-        print(clustering_df.columns)
 
         group_dfs = detect_issues(
             mfs, clustering_df, clustering_cols, min_drop, min_support, metric_mode
@@ -178,21 +177,39 @@ class SliceGuard:
             df,
             dtype=spotlight_dtype,
             issues=np.array(data_issues)[data_issue_order].tolist(),
+            layout=layout.layout(
+                [
+                    [layout.table()],
+                    [layout.similaritymap()],
+                    [layout.histogram()],
+                ],
+                [[layout.widgets.Inspector()], [layout.widgets.Issues()]],
+            ),
         )
 
     def _plot_clustering_overview(self):
         """
         Debugging method to get an overview on the last clustering structure.
         """
+        # for i in range(len(self._clustering_cols)):
+        # cur_clustering_cols = self._clustering_cols[:i+1]
+        cur_clustering_cols = self._clustering_cols
         plotting_df = pd.concat((self._clustering_df, self._issue_df), axis=1)
         plotting_df["is_issue"] = plotting_df["issue"] != -1
-        plotting_df["issue_metric_str"] = plotting_df["issue_metric"].apply(lambda x: '{0:.2f}'.format(x) if not np.isnan(x) else "")
+        plotting_df["issue_metric_str"] = plotting_df["issue_metric"].apply(
+            lambda x: "{0:.2f}".format(x)
+            if (isinstance(x, float) or isinstance(x, np.floating)) and not np.isnan(x)
+            else ""
+        )
         fig = px.treemap(
             plotting_df,
-            path=self._clustering_cols,
+            path=cur_clustering_cols,
             color="is_issue",
             color_discrete_map={"(?)": "lightgrey", True: "gold", False: "darkblue"},
-            custom_data="issue_metric_str"
+            custom_data="issue_metric_str",
         )
         fig.data[0].texttemplate = "%{customdata[0]}"
+        fig.data[0].textinfo = "none"
+        # fig.write_image(f"clustering_{i}.png", scale=4)
+
         fig.show()

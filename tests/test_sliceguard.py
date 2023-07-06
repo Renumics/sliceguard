@@ -65,8 +65,6 @@ def test_sliceguard_text():
         min_drop=0.04,
     )
 
-    print(issue_df)
-
     # df["age"] = df["age"].astype("category")
     # df["gender"] = df["gender"].astype("category")
     # df["accent"] = df["accent"].astype("category")

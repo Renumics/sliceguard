@@ -92,6 +92,8 @@ class SliceGuard:
             overall_metric = mfs[0].overall.values[0]
             print(f"The overall metric value is {overall_metric}")
 
+        print(clustering_df.columns)
+
         group_dfs = detect_issues(
             mfs, clustering_df, clustering_cols, min_drop, min_support, metric_mode
         )

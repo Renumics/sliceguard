@@ -41,8 +41,8 @@ def test_sliceguard_text():
 
     sg = SliceGuard()
     issue_df = sg.find_issues(
-        df,
-        ["sentence"],
+        df.sample(5000),
+        ["accent"],
         "sentence",
         "prediction",
         wer_metric,

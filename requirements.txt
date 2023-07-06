@@ -1,6 +1,7 @@
 pandas
 numpy
 matplotlib
+squarify
 requests
 jiwer
 fairlearn

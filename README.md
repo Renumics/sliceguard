@@ -26,6 +26,7 @@ Get started by loading your first dataset and let sliceguard do its work:
 ```python
 import pandas as pd
 import numpy as np
+from jiwer import wer
 from sliceguard import SliceGuard
 
 # Load the example data
@@ -43,6 +44,7 @@ issue_df = sg.find_issues(
     "sentence",
     "prediction",
     wer_metric,
+    metric_mode="min"
 )
 sg.report()
 ```

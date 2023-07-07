@@ -25,6 +25,7 @@ Get started by loading your first dataset and let sliceguard do its work:
 
 ```python
 import pandas as pd
+import numpy as np
 from sliceguard import SliceGuard
 
 # Load the example data

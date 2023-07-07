@@ -52,3 +52,14 @@ sg.report()
 For a more comprehensive tutorial check the following blog post on Medium:
 
 [Evaluating automatic speech recognition models beyond global metrics — A tutorial using OpenAI’s Whisper as an example](https://medium.com/@daniel-klitzke/evaluating-automatic-speech-recognition-models-beyond-global-metrics-a-tutorial-using-openais-54b63c4dadbd)
+
+## 🗺️ Public Roadmap
+- [x] Detection of problematic data slices
+- [x] Basic explanation of found issues via feature importances
+- [x] Limited embedding computation for images, audio, text
+- [ ] Extensive documentation and examples for common cases
+- [ ] Improved explanations for found issues, e.g., via SHAP
+- [ ] Extended embedding support, e.g., more embedding models and allow precomputed embeddings
+- [ ] Generation of a summary report doing predefined checks
+- [ ] Allow for control features in order to account for expected variations when running checks
+- [ ] Improved issue detection algorithm, avoiding duplicate detections of similar problems

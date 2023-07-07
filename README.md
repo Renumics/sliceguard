@@ -58,6 +58,7 @@ For a more comprehensive tutorial check the following blog post on Medium:
 - [x] Basic explanation of found issues via feature importances
 - [x] Limited embedding computation for images, audio, text
 - [ ] Extensive documentation and examples for common cases
+- [ ] Data connectors for faster application on common data formats
 - [ ] Improved explanations for found issues, e.g., via SHAP
 - [ ] Extended embedding support, e.g., more embedding models and allow precomputed embeddings
 - [ ] Generation of a summary report doing predefined checks

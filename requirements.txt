@@ -1,5 +1,7 @@
 pandas
 numpy
+matplotlib
+plotly
 requests
 jiwer
 fairlearn

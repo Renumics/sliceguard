@@ -20,12 +20,21 @@ def generate_metric_frames(
 
     """
     # Identify hierarchical clustering with h-nne
+    # As h-nne fails for less than 2 dimenions introduce dummy dimension in this case
+    num_features = encoded_data.shape[1]
+    if num_features <= 1:
+        encoded_data = np.concatenate(
+            (encoded_data, np.zeros((encoded_data.shape[0], 1))), axis=1
+        )
+
     hnne = HNNE(
         metric="euclidean"
     )  # TODO Probably explore different settings for hnne. Default of metric is cosine. To determine if this is better choice!
     projection = hnne.fit_transform(encoded_data)
+    partitions = hnne.hierarchy_parameters.partitions
+
     partitions = np.flip(
-        hnne.hierarchy_parameters.partitions, axis=1
+        partitions, axis=1
     )  # reverse the order of the hierarchy levels, go from coarse to fine
     partition_sizes = hnne.hierarchy_parameters.partition_sizes
     partition_levels = len(partition_sizes)
@@ -81,7 +90,7 @@ def detect_issues(
     :param min_drop: Minimum drop that has to be present so the cluster is marked as problematic.
     :param min_support: Minimum number of samples in one cluster so that it is marked as issue.
     :param metric_mode: Optimization goal for the metric. Can be "min" or "max".
-    
+
     """
     # Determine the hierarchy levels that most likely capture real problems
     # TODO: Determine if these values should be chosen adaptively, potentially differing on every level

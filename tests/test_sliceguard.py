@@ -7,11 +7,11 @@ from urllib.parse import urlparse
 from sklearn.metrics import accuracy_score
 import requests
 import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
 from jiwer import wer
 import datasets
-from renumics import spotlight
-from renumics.spotlight import Embedding, Image, Audio
+from renumics.spotlight import Image, Audio
 
 from sliceguard import SliceGuard
 
@@ -22,6 +22,12 @@ def wer_metric(y_true, y_pred):
 
 def test_sliceguard_text():
     df = pd.read_json("tests/predictions.json")
+
+    # df = df.drop(
+    #     columns=["up_votes", "down_votes", "locale", "segment", "variant", "audio"]
+    # )
+    # df.sample(500).to_json("example_data.json", orient="records")
+
     df = df[df["accent"] != ""]
     df = df[df["age"] != ""]
     df = df[df["gender"] != ""]
@@ -50,17 +56,17 @@ def test_sliceguard_text():
                 "nineties",
             ]
         },
-        min_support=10,
-        min_drop=0.08,
+        min_support=30,
+        min_drop=0.04,
     )
 
-    df["age"] = df["age"].astype("category")
-    df["gender"] = df["gender"].astype("category")
-    df["accent"] = df["accent"].astype("category")
+    # df["age"] = df["age"].astype("category")
+    # df["gender"] = df["gender"].astype("category")
+    # df["accent"] = df["accent"].astype("category")
 
-    sg.report(
-        spotlight_dtype={"audio": Audio},
-    )
+    sg.report(spotlight_dtype={"audio": Audio})
+
+    # sg._plot_clustering_overview()
 
 
 def test_sliceguard_images():
@@ -94,7 +100,6 @@ def test_sliceguard_images():
 
     df = df[~pd.isnull(df["transcript"])]
     df = df[~pd.isnull(df["explanation"])]
-    df = df.sample(500)
 
     sg = SliceGuard()
     issue_df = sg.find_issues(
@@ -106,7 +111,7 @@ def test_sliceguard_images():
         metric_mode="min",
         # feature_types={"age": "ordinal"},
         # feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
-        min_support=5,
+        min_support=10,
         min_drop=0.08,
     )
 

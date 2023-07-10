@@ -1,0 +1,8 @@
+# Do not accidentally commit any credentials used in the examples
+access_token.txt
+
+# Do not commit downloaded audio
+audios/
+
+# Do not commit model predictions
+dataset.json

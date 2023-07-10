@@ -20,3 +20,4 @@ umap-learn
 Pillow
 tqdm
 renumics-spotlight==1.3.0rc1
+notebook

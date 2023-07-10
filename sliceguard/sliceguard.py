@@ -1,3 +1,10 @@
+# Supress numba deprecation warnings until umap fixes this
+import warnings
+from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
+warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
+warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
+
+# Real imports
 from typing import List, Literal, Dict, Callable
 
 import pandas as pd
@@ -26,14 +33,16 @@ class SliceGuard:
         y: str,
         y_pred: str,
         metric: Callable,
+        min_support: int = None,
+        min_drop: float = None,
         metric_mode: Literal["min", "max"] = "max",
         feature_types: Dict[
-            str, Literal["raw", "nominal", "ordinal", "numerical"]
+            str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
         ] = {},
         feature_orders: Dict[str, list] = {},
         precomputed_embeddings: Dict[str, np.array] = {},
-        min_support: int = None,
-        min_drop: float = None,
+        embedding_models: Dict[str, str] = {},
+        hf_auth_token=None,
     ):
         """
         Find slices that are classified badly by your model.
@@ -43,12 +52,14 @@ class SliceGuard:
         :param y: The column containing the ground-truth label.
         :param y_pred: The column containing your models prediction.
         :param metric: A callable metric function that must correspond to the form metric(y_true, y_pred) -> scikit-learn style.
+        :min_support: Minimum support for clusters that are listed as issues. If you are more looking towards outliers choose small values, if you target biases choose higher values.
+        :min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
         :param metric_mode: What do you optimize your metric for? max is the right choice for accuracy while e.g. min is good for regression error.
         :param feature_types: Specify how your feature should be treated in encoding and normalizing.
         :param feature_orders: If your feature is ordinal, specify the order of that should be used for encoding. This is required for EVERY ordinal feature.
         :param precomputed_embeddings: Supply precomputed embeddings for raw columns. E.g. if repeatedly running checks on your data.
-        :min_support: Minimum support for clusters that are listed as issues. If you are more looking towards outliers choose small values, if you target biases choose higher values.
-        :min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
+        :param embedding_model: Supply embedding models that should be used to compute embedding vectors from raw data.
+        :param hf_auth_token: The authentification token used to download embedding models from the huggingface hub.
         """
 
         assert (
@@ -66,7 +77,13 @@ class SliceGuard:
 
         # Encode the features for clustering according to inferred types
         encoded_data, prereduced_embeddings, raw_embeddings = encode_normalize_features(
-            features, feature_types, feature_orders, precomputed_embeddings, df
+            features,
+            feature_types,
+            feature_orders,
+            precomputed_embeddings,
+            embedding_models,
+            hf_auth_token,
+            df,
         )
 
         # Perform detection of problematic clusters based on the given features

@@ -61,6 +61,8 @@ def encode_normalize_features(
     feature_types: Dict[str, Literal["raw", "nominal", "ordinal", "numerical"]],
     feature_orders: Dict[str, list],
     precomputed_embeddings: Dict[str, np.array],
+    embedding_models: Dict[str, str],
+    hf_auth_token: str,
     df: pd.DataFrame,
 ):
     """
@@ -115,7 +117,14 @@ def encode_normalize_features(
             elif first_entry.lower().endswith(
                 ".wav"
             ):  # TODO: Improve data type inference for raw data
-                embeddings = generate_audio_embeddings(df[col].values)
+                model_name_param = (
+                    {"model_name": embedding_models[col]}
+                    if col in embedding_models
+                    else {}
+                )
+                embeddings = generate_audio_embeddings(
+                    df[col].values, **model_name_param
+                )
                 raw_embeddings[col] = embeddings
             elif (
                 first_entry.lower().endswith(".jpg")

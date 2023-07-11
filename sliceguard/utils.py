@@ -111,17 +111,19 @@ def encode_normalize_features(
             encoded_data = np.concatenate((encoded_data, ordinal_data), axis=1)
         elif feature_type == "raw":
             first_entry = df[col].iloc[0]
+            model_name_param = (
+                {"model_name": embedding_models[col]} if col in embedding_models else {}
+            )
+            if "model_name" in model_name_param:
+                print(f"Using {model_name_param['model_name']} for computing embeddings for feature {col}.")
+            else:
+                print(f"Using default model for computing embeddings for feature {col}.")
             if col in precomputed_embeddings:  # use precomputed embeddings when given
                 embeddings = precomputed_embeddings[col]
                 assert len(embeddings) == len(df)
             elif first_entry.lower().endswith(
                 ".wav"
             ):  # TODO: Improve data type inference for raw data
-                model_name_param = (
-                    {"model_name": embedding_models[col]}
-                    if col in embedding_models
-                    else {}
-                )
                 embeddings = generate_audio_embeddings(
                     df[col].values, **model_name_param
                 )
@@ -131,10 +133,10 @@ def encode_normalize_features(
                 or first_entry.lower().endswith(".jpeg")
                 or first_entry.lower().endswith(".png")
             ):
-                embeddings = generate_image_embeddings(df[col].values)
+                embeddings = generate_image_embeddings(df[col].values, **model_name_param)
                 raw_embeddings[col] = embeddings
             else:  # Treat as text if nothing known
-                embeddings = generate_text_embeddings(df[col].values)
+                embeddings = generate_text_embeddings(df[col].values, **model_name_param)
                 raw_embeddings[col] = embeddings
 
             # TODO: Potentially filter out entries without valid embedding or replace with mean?

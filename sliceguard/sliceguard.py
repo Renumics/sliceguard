@@ -1,8 +1,9 @@
 # Supress numba deprecation warnings until umap fixes this
 import warnings
 from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
-warnings.simplefilter('ignore', category=NumbaDeprecationWarning)
-warnings.simplefilter('ignore', category=NumbaPendingDeprecationWarning)
+
+warnings.simplefilter("ignore", category=NumbaDeprecationWarning)
+warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 
 # Real imports
 from typing import List, Literal, Dict, Callable
@@ -63,14 +64,23 @@ class SliceGuard:
         """
 
         assert (
-            (all([f in data.columns for f in features]))
+            (
+                all(
+                    [
+                        (f in data.columns or f in precomputed_embeddings)
+                        for f in features
+                    ]
+                )
+            )
             and (y in data.columns)
             and (y_pred in data.columns)
         )  # check presence of all columns
         df = data  # just rename the variable for shorter naming
 
         # Try to infer the column dtypes
-        feature_types = infer_feature_types(features, feature_types, df)
+        feature_types = infer_feature_types(
+            features, feature_types, precomputed_embeddings, df
+        )
 
         # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant
         # See also connection with full report functionality. It makes sense to habe a feature and a samples based view!

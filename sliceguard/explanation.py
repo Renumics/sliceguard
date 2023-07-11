@@ -30,16 +30,16 @@ def explain_clusters(features, feature_types, issue_df, df, prereduced_embedding
             current_feature_index += 1
         elif feature_type == "nominal" or feature_type == "ordinal":
             label_encoder = LabelEncoder()
-            integer_encoded_data = label_encoder.fit_transform(
-                df[col].values
-            ).reshape(-1, 1)
+            integer_encoded_data = label_encoder.fit_transform(df[col].values).reshape(
+                -1, 1
+            )
             label_encoders[col] = label_encoder
             classification_data = np.concatenate(
                 (classification_data, integer_encoded_data), axis=1
             )
             feature_groups.append([current_feature_index])
             current_feature_index += 1
-        elif feature_type == "raw":
+        elif feature_type == "raw" or feature_type == "embedding":
             reduced_embeddings = prereduced_embeddings[col]
             classification_data = np.concatenate(
                 (classification_data, reduced_embeddings), axis=1

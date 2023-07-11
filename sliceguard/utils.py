@@ -14,7 +14,10 @@ from .embedding_utils import (
 
 def infer_feature_types(
     features,
-    given_feature_types: Dict[str, Literal["raw", "nominal", "ordinal", "numerical"]],
+    given_feature_types: Dict[
+        str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
+    ],
+    precomputed_embeddings: Dict[str, np.array],
     df: pd.DataFrame,
 ):
     """
@@ -26,6 +29,11 @@ def infer_feature_types(
 
     feature_types = {}
     for col in features:
+        # check if the column is supplied in precomputed embeddings, then always use embedding feature type
+        if col in precomputed_embeddings:
+            feature_types[col] = "embedding"
+            continue
+
         col_dtype = df[col].dtype
 
         if col_dtype == "object" and col not in given_feature_types:
@@ -51,6 +59,7 @@ def infer_feature_types(
                 "nominal",
                 "ordinal",
                 "numerical",
+                "embedding",
             )
             feature_types[col] = given_feature_types[col]
     return feature_types
@@ -109,15 +118,25 @@ def encode_normalize_features(
                 len(feature_order) - 1
             )  # normalize with unique category count to make compatible with range of one hot encoding
             encoded_data = np.concatenate((encoded_data, ordinal_data), axis=1)
-        elif feature_type == "raw":
-            first_entry = df[col].iloc[0]
-            model_name_param = (
-                {"model_name": embedding_models[col]} if col in embedding_models else {}
-            )
-            if "model_name" in model_name_param:
-                print(f"Using {model_name_param['model_name']} for computing embeddings for feature {col}.")
-            else:
-                print(f"Using default model for computing embeddings for feature {col}.")
+        elif feature_type == "raw" or feature_type == "embedding":
+            # Print model that will be used for computing embeddings
+            if col in df.columns and col not in precomputed_embeddings:
+                model_name_param = (
+                    {"model_name": embedding_models[col]}
+                    if col in embedding_models
+                    else {}
+                )
+                if "model_name" in model_name_param:
+                    print(
+                        f"Using {model_name_param['model_name']} for computing embeddings for feature {col}."
+                    )
+                else:
+                    print(
+                        f"Using default model for computing embeddings for feature {col}."
+                    )
+            # Set first entry as for checking type of raw data.
+            if col in df.columns:
+                first_entry = df[col].iloc[0]
             if col in precomputed_embeddings:  # use precomputed embeddings when given
                 embeddings = precomputed_embeddings[col]
                 assert len(embeddings) == len(df)
@@ -133,10 +152,14 @@ def encode_normalize_features(
                 or first_entry.lower().endswith(".jpeg")
                 or first_entry.lower().endswith(".png")
             ):
-                embeddings = generate_image_embeddings(df[col].values, **model_name_param)
+                embeddings = generate_image_embeddings(
+                    df[col].values, **model_name_param
+                )
                 raw_embeddings[col] = embeddings
             else:  # Treat as text if nothing known
-                embeddings = generate_text_embeddings(df[col].values, **model_name_param)
+                embeddings = generate_text_embeddings(
+                    df[col].values, **model_name_param
+                )
                 raw_embeddings[col] = embeddings
 
             # TODO: Potentially filter out entries without valid embedding or replace with mean?

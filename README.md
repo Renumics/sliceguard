@@ -49,7 +49,12 @@ issue_df = sg.find_issues(
 sg.report()
 ```
 
-For a more comprehensive tutorial check the following blog post on Medium:
+## 🔧 Use case-specific examples
+* [Detecting issues in automatic speech recognition (ASR) models](examples/audio_issues_commonvoice_whisper.ipynb)
+* [Detecting issues in audio datasets (condition monitoring)](examples/audio_issues_condition_monitoring_dcase.ipynb)
+
+
+Also check this post on Medium:
 
 [Evaluating automatic speech recognition models beyond global metrics — A tutorial using OpenAI’s Whisper as an example](https://medium.com/@daniel-klitzke/evaluating-automatic-speech-recognition-models-beyond-global-metrics-a-tutorial-using-openais-54b63c4dadbd)
 

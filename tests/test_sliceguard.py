@@ -133,30 +133,31 @@ def test_sliceguard_audio():
         metric_mode="max",
         # feature_types={"age": "ordinal"},
         # feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
+        embedding_models={"path": "superb/wav2vec2-base-superb-sid"},
         min_support=5,
         min_drop=0.1,
     )
 
-    computed_embeddings = sg.embeddings
+    # computed_embeddings = sg.embeddings
 
-    issue_df = sg.find_issues(
-        df,
-        ["path"],
-        "label",
-        "class",
-        accuracy_score,
-        metric_mode="max",
-        # feature_types={"age": "ordinal"},
-        # feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
-        precomputed_embeddings=computed_embeddings,
-        min_support=5,
-        min_drop=0.1,
-    )
+    # issue_df = sg.find_issues(
+    #     df,
+    #     ["path"],
+    #     "label",
+    #     "class",
+    #     accuracy_score,
+    #     metric_mode="max",
+    #     # feature_types={"age": "ordinal"},
+    #     # feature_orders={"age": ["", "teens", "twenties", "thirties", "fourties", "fifties", "sixties", "seventies", "eighties", "nineties"]},
+    #     precomputed_embeddings=computed_embeddings,
+    #     min_support=5,
+    #     min_drop=0.1,
+    # )
 
     sg.report(spotlight_dtype={"path": Audio})
 
 
 if __name__ == "__main__":
-    test_sliceguard_text()
+    # test_sliceguard_text()
     # test_sliceguard_images()
-    # test_sliceguard_audio()
+    test_sliceguard_audio()

@@ -71,4 +71,4 @@ Also check this post on Medium:
 - [ ] Improved explanations for found issues, e.g., via SHAP
 - [ ] Generation of a summary report doing predefined checks
 - [ ] Allow for control features in order to account for expected variations when running checks
-- [ ] Improved issue detection algorithm, avoiding duplicate detections of similar problems
+- [ ] Improved issue detection algorithm, avoiding duplicate detections of similar problems and outliers influencing the segment detection

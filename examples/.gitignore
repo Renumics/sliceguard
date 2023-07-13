@@ -4,5 +4,9 @@ access_token.txt
 # Do not commit downloaded audio
 audios/
 
+# Do also not commit generated images
+images/
+
 # Do not commit model predictions
 dataset.json
+sd_dataset.json

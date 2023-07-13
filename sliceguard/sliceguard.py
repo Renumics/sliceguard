@@ -14,6 +14,7 @@ import plotly.express as px
 
 from renumics import spotlight
 from renumics.spotlight.analysis.typing import DataIssue
+from renumics.spotlight import Embedding
 from renumics.spotlight import layout
 
 from .utils import infer_feature_types, encode_normalize_features
@@ -169,6 +170,13 @@ class SliceGuard:
 
         df = pd.concat((self._df, self._issue_df), axis=1)
 
+        # Insert embeddings if they were computed
+        embedding_dtypes = {}
+        for embedding_col, embeddings in self.embeddings.items():
+            report_col_name = f"sg_emb_{embedding_col}"
+            df[report_col_name] = [e.tolist() for e in embeddings]
+            embedding_dtypes[report_col_name] = Embedding
+
         data_issue_severity = []
         data_issues = []
         for issue in self._issue_df["issue"].unique():
@@ -202,7 +210,7 @@ class SliceGuard:
 
         spotlight.show(
             df,
-            dtype=spotlight_dtype,
+            dtype={ **spotlight_dtype, **embedding_dtypes},
             issues=np.array(data_issues)[data_issue_order].tolist(),
             layout=layout.layout(
                 [
@@ -213,6 +221,7 @@ class SliceGuard:
                 [[layout.widgets.Inspector()], [layout.widgets.Issues()]],
             ),
         )
+        return df # Return the create report dataframe in case caller wants to process it
 
     def _plot_clustering_overview(self):
         """

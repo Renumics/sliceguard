@@ -121,14 +121,17 @@ def encode_normalize_features(
         elif feature_type == "raw" or feature_type == "embedding":
             # Print model that will be used for computing embeddings
             if col in df.columns and col not in precomputed_embeddings:
-                model_name_param = (
-                    {"model_name": embedding_models[col]}
+                hf_model_params = (
+                    {
+                        "model_name": embedding_models[col],
+                        "hf_auth_token": hf_auth_token,
+                    }
                     if col in embedding_models
                     else {}
                 )
-                if "model_name" in model_name_param:
+                if "model_name" in hf_model_params:
                     print(
-                        f"Using {model_name_param['model_name']} for computing embeddings for feature {col}."
+                        f"Using {hf_model_params['model_name']} for computing embeddings for feature {col}."
                     )
                 else:
                     print(
@@ -140,11 +143,12 @@ def encode_normalize_features(
             if col in precomputed_embeddings:  # use precomputed embeddings when given
                 embeddings = precomputed_embeddings[col]
                 assert len(embeddings) == len(df)
+                raw_embeddings[col] = embeddings # also save them here as they are used in report
             elif first_entry.lower().endswith(
                 ".wav"
             ):  # TODO: Improve data type inference for raw data
                 embeddings = generate_audio_embeddings(
-                    df[col].values, **model_name_param
+                    df[col].values, **hf_model_params
                 )
                 raw_embeddings[col] = embeddings
             elif (
@@ -153,20 +157,18 @@ def encode_normalize_features(
                 or first_entry.lower().endswith(".png")
             ):
                 embeddings = generate_image_embeddings(
-                    df[col].values, **model_name_param
+                    df[col].values, **hf_model_params
                 )
                 raw_embeddings[col] = embeddings
             else:  # Treat as text if nothing known
-                embeddings = generate_text_embeddings(
-                    df[col].values, **model_name_param
-                )
+                embeddings = generate_text_embeddings(df[col].values, **hf_model_params)
                 raw_embeddings[col] = embeddings
 
             # TODO: Potentially filter out entries without valid embedding or replace with mean?
             reduced_embeddings = umap.UMAP(
                 # n_neighbors=min(len(df) - 1, 30),
                 # min_dist=0.0,
-                n_components=2,
+                n_components=8, # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normlization.
                 random_state=42,
             ).fit_transform(embeddings)
 

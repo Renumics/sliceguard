@@ -72,3 +72,4 @@ Also check this post on Medium:
 - [ ] Generation of a summary report doing predefined checks
 - [ ] Allow for control features in order to account for expected variations when running checks
 - [ ] Improved issue detection algorithm, avoiding duplicate detections of similar problems and outliers influencing the segment detection
+- [ ] Large data support for detection and reporting, e.g., 500k audio samples with transcriptions

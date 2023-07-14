@@ -170,8 +170,12 @@ def detect_issues(
                     np.abs(samplewise_drops - np.median(samplewise_drops))
                 )
                 valid_samples = (
-                    samplewise_drops >= (cluster_drop - 2 * median_abs_deviation)
-                ) & (samplewise_drops <= (cluster_drop + 2 * median_abs_deviation))
+                    samplewise_drops
+                    >= (np.median(samplewise_drops) - 2 * median_abs_deviation)
+                ) & (
+                    samplewise_drops
+                    <= (np.median(samplewise_drops) + 2 * median_abs_deviation)
+                )
                 true_support = valid_samples.sum()
                 true_supports.append(true_support)
                 # If there are no valid samples in a slice, treat as having no drop

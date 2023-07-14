@@ -1,4 +1,5 @@
 from typing import Callable, List, Literal
+import math
 
 from hnne import HNNE
 import numpy as np
@@ -7,7 +8,12 @@ from fairlearn.metrics import MetricFrame
 
 
 def generate_metric_frames(
-    encoded_data: np.array, df: pd.DataFrame, y: str, y_pred: str, metric: Callable
+    encoded_data: np.array,
+    df: pd.DataFrame,
+    y: str,
+    y_pred: str,
+    metric: Callable,
+    remove_outliers: bool,
 ):
     """
     Generate clustering on multiple levels and create data structures for additional processing lateron.
@@ -44,6 +50,17 @@ def generate_metric_frames(
         data=partitions, columns=clustering_cols, index=df.index
     )
 
+    # Calculate samplewise metric in order to delete well performing samples from clusters
+    # This is done as the clustering does probably contain outliers in some cases that influence the
+    # overall metric while most of the cluster is actually fine.
+    # E.g. word error rate is 20 for one sample but 0.2 for most others. This should not be marked as issue!
+    if remove_outliers == True:
+        samplewise_metrics = []
+        for idx, sample in df.iterrows():
+            sample_metric = metric([sample[y]], [sample[y_pred]])
+            samplewise_metrics.append(sample_metric)
+        clustering_df["metric"] = samplewise_metrics
+
     # Calculate fairness metrics on the clusters with fairlearn
     mfs = []
     clustering_metric_cols = []
@@ -70,6 +87,7 @@ def generate_metric_frames(
             clustering_df.loc[clustering_df[col] == idx, count_col] = (
                 clustering_df[col] == idx
             ).sum()
+
     return mfs, clustering_df, clustering_cols, clustering_metric_cols
 
 
@@ -80,6 +98,7 @@ def detect_issues(
     min_drop: float,
     min_support: int,
     metric_mode: Literal["min", "max"],
+    remove_outliers: bool,
 ):
     """
     Determine the hierarchy levels that most likely capture real problems, based on the previously
@@ -110,14 +129,16 @@ def detect_issues(
     for mf, clustering_col in zip(mfs, clustering_cols):
         # Calculate cluster support
         drops = (
-            mf.overall.values[0] - mf.by_group.values
+            mf.overall.values[0] - mf.by_group.values[:, 0]
             if metric_mode == "max"
-            else mf.by_group.values - mf.overall.values[0]
+            else mf.by_group.values[:, 0] - mf.overall.values[0]
         )
+
         supports = [
             (clustering_df[clustering_col] == cluster).sum()
             for cluster in mf.by_group.index
         ]
+
         group_df = pd.concat(
             (
                 mf.by_group,
@@ -127,12 +148,60 @@ def detect_issues(
             axis=1,
         )
 
-        # print(group_df)
+        # Compute the "true" support for each cluster.
+        # There could be clusters where the overall metric looks bad but this is actually caused by one single outlier.
+        # Those should not be marked as potential slices if they do not fulfil the min support criterion.
+        if remove_outliers:
+            true_supports = []
+            true_drops = []
+            for (cluster_idx, cluster_metric), cluster_drop, cluster_support in zip(
+                mf.by_group.iterrows(), drops, supports
+            ):
+                cluster_metric = cluster_metric["metric"]
+                samplewise_metrics = clustering_df[
+                    clustering_df[clustering_col] == cluster_idx
+                ]["metric"].values
+                samplewise_drops = (
+                    mf.overall.values[0] - samplewise_metrics
+                    if metric_mode == "max"
+                    else samplewise_metrics - mf.overall.values[0]
+                )
+                median_abs_deviation = np.median(
+                    np.abs(samplewise_drops - np.median(samplewise_drops))
+                )
+                valid_samples = (
+                    samplewise_drops >= (cluster_drop - 2 * median_abs_deviation)
+                ) & (samplewise_drops <= (cluster_drop + 2 * median_abs_deviation))
+                true_support = valid_samples.sum()
+                true_supports.append(true_support)
+                # If there are no valid samples in a slice, treat as having no drop
+                if valid_samples.sum() > 0:
+                    true_drop = np.mean(samplewise_drops[valid_samples])
+                else:
+                    true_drop = -math.inf
+                true_drops.append(true_drop)
+
+            group_df = pd.concat(
+                (
+                    group_df,
+                    pd.DataFrame(data=true_supports, columns=["true_support"]),
+                    pd.DataFrame(data=true_drops, columns=["true_drop"]),
+                ),
+                axis=1,
+            )
+
+        # Define columns to use for traversing tree
+        if remove_outliers:
+            drop_col = "true_drop"
+            support_col = "true_support"
+        else:
+            drop_col = "drop"
+            support_col = "support"
 
         group_df["issue"] = False
 
         group_df.loc[
-            (group_df["drop"] > min_drop) & (group_df["support"] > min_support),
+            (group_df[drop_col] >= min_drop) & (group_df[support_col] >= min_support),
             "issue",
         ] = True
 
@@ -147,7 +216,7 @@ def detect_issues(
                 parent_cluster = group_entries[previous_clustering_col].values[0]
 
                 if (
-                    row["support"] > min_support and row["drop"] > min_drop
+                    row[support_col] > min_support and row[drop_col] > min_drop
                 ):  # TODO Verify this rule makes sense, could cause larger clusters to be discarded because of one also bad subcluster
                     previous_group_df.loc[parent_cluster, "issue"] = False
                 else:

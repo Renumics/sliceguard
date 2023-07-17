@@ -3,11 +3,14 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 from transformers import AutoFeatureExtractor, AutoModel
 import datasets
-from tqdm import tqdm
-from PIL import Image
 import numpy as np
 import torch
-import torchaudio
+
+
+def generate_text_embeddings(texts, model_name="all-MiniLM-L6-v2", hf_auth_token=None):
+    model = SentenceTransformer(model_name, use_auth_token=hf_auth_token)
+    embeddings = model.encode(texts)
+    return embeddings
 
 
 def _extract_embeddings_images(model, feature_extractor, col_name="image"):
@@ -15,7 +18,9 @@ def _extract_embeddings_images(model, feature_extractor, col_name="image"):
     device = model.device
 
     def pp(batch):
-        images = batch[col_name] # not sure if this is smart. probably some feature extractors take multiple modalities.
+        images = batch[
+            col_name
+        ]  # not sure if this is smart. probably some feature extractors take multiple modalities.
         inputs = feature_extractor(images=images, return_tensors="pt").to(device)
         with torch.no_grad():
             embeddings = model(**inputs).last_hidden_state[:, 0].detach().cpu()
@@ -23,26 +28,6 @@ def _extract_embeddings_images(model, feature_extractor, col_name="image"):
         return {"embedding": embeddings}
 
     return pp
-
-def _extract_embeddings_audios(model, feature_extractor, col_name="audio"):
-    """Utility to compute embeddings for audios."""
-    device = model.device
-
-    def pp(batch):
-        audios = batch[col_name] # not sure if this is smart. probably some feature extractors take multiple modalities.
-        inputs = feature_extractor(raw_speech=[a["array"] for a in audios], sampling_rate=audios[0]["sampling_rate"], return_tensors="pt").to(device)
-        with torch.no_grad():
-            embeddings = model(**inputs).last_hidden_state[:, 0].detach().cpu()
-
-        return {"embedding": embeddings}
-
-    return pp
-
-
-def generate_text_embeddings(texts, model_name="all-MiniLM-L6-v2", hf_auth_token=None):
-    model = SentenceTransformer(model_name, use_auth_token=hf_auth_token)
-    embeddings = model.encode(texts)
-    return embeddings
 
 
 def generate_image_embeddings(
@@ -59,16 +44,44 @@ def generate_image_embeddings(
     df = pd.DataFrame(data={"image": image_paths})
     dataset = datasets.Dataset.from_pandas(df).cast_column("image", datasets.Image())
 
-    extract_fn = _extract_embeddings_images(model.to(device), feature_extractor, "image")
-    updated_dataset = dataset.map(extract_fn, batched=True, batch_size=1) # batches has to be true in general, the batch size could be varied
+    extract_fn = _extract_embeddings_images(
+        model.to(device), feature_extractor, "image"
+    )
+    updated_dataset = dataset.map(
+        extract_fn, batched=True, batch_size=1
+    )  # batches has to be true in general, the batch size could be varied
 
     df_updated = updated_dataset.to_pandas()
 
     embeddings = np.array(
-        [emb.tolist() if emb is not None else None for emb in df_updated["embedding"].values]
+        [
+            emb.tolist() if emb is not None else None
+            for emb in df_updated["embedding"].values
+        ]
     )
 
     return embeddings
+
+
+def _extract_embeddings_audios(model, feature_extractor, col_name="audio"):
+    """Utility to compute embeddings for audios."""
+    device = model.device
+
+    def pp(batch):
+        audios = batch[
+            col_name
+        ]  # not sure if this is smart. probably some feature extractors take multiple modalities.
+        inputs = feature_extractor(
+            raw_speech=[a["array"] for a in audios],
+            sampling_rate=audios[0]["sampling_rate"],
+            return_tensors="pt",
+        ).to(device)
+        with torch.no_grad():
+            embeddings = model(**inputs).last_hidden_state[:, 0].detach().cpu()
+
+        return {"embedding": embeddings}
+
+    return pp
 
 
 def generate_audio_embeddings(
@@ -88,14 +101,21 @@ def generate_audio_embeddings(
     df = pd.DataFrame(data={"audio": audio_paths})
 
     dataset = datasets.Dataset.from_pandas(df).cast_column("audio", datasets.Audio())
-    
-    extract_fn = _extract_embeddings_audios(model.to(device), feature_extractor, "audio")
-    updated_dataset = dataset.map(extract_fn, batched=True, batch_size=1) # batches has to be true in general, the batch size could be varied
+
+    extract_fn = _extract_embeddings_audios(
+        model.to(device), feature_extractor, "audio"
+    )
+    updated_dataset = dataset.map(
+        extract_fn, batched=True, batch_size=1
+    )  # batches has to be true in general, the batch size could be varied
 
     df_updated = updated_dataset.to_pandas()
 
     embeddings = np.array(
-        [emb.tolist() if emb is not None else None for emb in df_updated["embedding"].values]
+        [
+            emb.tolist() if emb is not None else None
+            for emb in df_updated["embedding"].values
+        ]
     )
 
     return embeddings

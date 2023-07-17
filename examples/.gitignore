@@ -10,3 +10,4 @@ images/
 # Do not commit model predictions
 dataset.json
 sd_dataset.json
+sd_dataset_scored.json

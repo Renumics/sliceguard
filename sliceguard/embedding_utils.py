@@ -49,7 +49,7 @@ def generate_image_embeddings(
     )
     updated_dataset = dataset.map(
         extract_fn, batched=True, batch_size=1
-    )  # batches has to be true in general, the batch size could be varied
+    )  # batches has to be true in general, the batch size could be varied, also multiprocessing could be applied
 
     df_updated = updated_dataset.to_pandas()
 
@@ -71,9 +71,14 @@ def _extract_embeddings_audios(model, feature_extractor, col_name="audio"):
         audios = batch[
             col_name
         ]  # not sure if this is smart. probably some feature extractors take multiple modalities.
+        sampling_rates = np.array([a["sampling_rate"] for a in audios])
+        if not np.all(sampling_rates[0] == sampling_rates):
+            raise RuntimeError(
+                "If batching is active, sampling rates should be the same for all batch samples."
+            )
         inputs = feature_extractor(
             raw_speech=[a["array"] for a in audios],
-            sampling_rate=audios[0]["sampling_rate"],
+            sampling_rate=sampling_rates[0],
             return_tensors="pt",
         ).to(device)
         with torch.no_grad():

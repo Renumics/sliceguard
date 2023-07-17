@@ -46,6 +46,8 @@ class SliceGuard:
         precomputed_embeddings: Dict[str, np.array] = {},
         embedding_models: Dict[str, str] = {},
         hf_auth_token=None,
+        hf_num_proc=None,
+        hf_batch_size=1,
     ):
         """
         Find slices that are classified badly by your model.
@@ -64,6 +66,8 @@ class SliceGuard:
         :param precomputed_embeddings: Supply precomputed embeddings for raw columns. E.g. if repeatedly running checks on your data.
         :param embedding_model: Supply embedding models that should be used to compute embedding vectors from raw data.
         :param hf_auth_token: The authentification token used to download embedding models from the huggingface hub.
+        :param hf_num_proc: Multiprocessing used in audio/image preprocessing.
+        :param hf_batch_size: Batch size used in computing embeddings.
         """
 
         assert (
@@ -96,6 +100,8 @@ class SliceGuard:
             precomputed_embeddings,
             embedding_models,
             hf_auth_token,
+            hf_num_proc,
+            hf_batch_size,
             df,
         )
 

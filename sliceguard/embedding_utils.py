@@ -7,9 +7,25 @@ import numpy as np
 import torch
 
 
-def generate_text_embeddings(texts, model_name="all-MiniLM-L6-v2", hf_auth_token=None):
-    model = SentenceTransformer(model_name, use_auth_token=hf_auth_token)
-    embeddings = model.encode(texts)
+def generate_text_embeddings(
+    texts,
+    model_name="all-MiniLM-L6-v2",
+    hf_auth_token=None,
+    hf_num_proc=None,
+    hf_batch_size=1,
+):
+    if hf_num_proc:
+        print(
+            "Warning: Multiprocessing cannot be used in generating text embeddings yet."
+        )
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    print(
+        f"Embedding computation on {device} with batch size {hf_batch_size} and multiprocessing {hf_num_proc}."
+    )
+
+    model = SentenceTransformer(model_name, device=device, use_auth_token=hf_auth_token)
+    embeddings = model.encode(texts, batch_size=hf_batch_size)
     return embeddings
 
 
@@ -31,12 +47,21 @@ def _extract_embeddings_images(model, feature_extractor, col_name="image"):
 
 
 def generate_image_embeddings(
-    image_paths, model_name="google/vit-base-patch16-224", hf_auth_token=None
+    image_paths,
+    model_name="google/vit-base-patch16-224",
+    hf_auth_token=None,
+    hf_num_proc=None,
+    hf_batch_size=1,
 ):
     feature_extractor = AutoFeatureExtractor.from_pretrained(
         model_name, use_auth_token=hf_auth_token
     )
     device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    print(
+        f"Embedding computation on {device} with batch size {hf_batch_size} and multiprocessing {hf_num_proc}."
+    )
+
     model = AutoModel.from_pretrained(
         model_name, output_hidden_states=True, use_auth_token=hf_auth_token
     ).to(device)
@@ -48,7 +73,7 @@ def generate_image_embeddings(
         model.to(device), feature_extractor, "image"
     )
     updated_dataset = dataset.map(
-        extract_fn, batched=True, batch_size=1
+        extract_fn, batched=True, batch_size=hf_batch_size, num_proc=hf_num_proc
     )  # batches has to be true in general, the batch size could be varied, also multiprocessing could be applied
 
     df_updated = updated_dataset.to_pandas()
@@ -93,12 +118,19 @@ def generate_audio_embeddings(
     audio_paths,
     model_name="MIT/ast-finetuned-audioset-10-10-0.4593",
     hf_auth_token=None,
+    hf_num_proc=None,
+    hf_batch_size=1,
 ):
     feature_extractor = AutoFeatureExtractor.from_pretrained(
         model_name, use_auth_token=hf_auth_token
     )
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    print(
+        f"Embedding computation on {device} with batch size {hf_batch_size} and multiprocessing {hf_num_proc}."
+    )
+
     model = AutoModel.from_pretrained(
         model_name, output_hidden_states=True, use_auth_token=hf_auth_token
     ).to(device)
@@ -111,7 +143,7 @@ def generate_audio_embeddings(
         model.to(device), feature_extractor, "audio"
     )
     updated_dataset = dataset.map(
-        extract_fn, batched=True, batch_size=1
+        extract_fn, batched=True, batch_size=hf_batch_size, num_proc=hf_num_proc
     )  # batches has to be true in general, the batch size could be varied
 
     df_updated = updated_dataset.to_pandas()

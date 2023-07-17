@@ -1,4 +1,4 @@
-from typing import List, Dict, Literal
+from typing import List, Dict, Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -72,6 +72,8 @@ def encode_normalize_features(
     precomputed_embeddings: Dict[str, np.array],
     embedding_models: Dict[str, str],
     hf_auth_token: str,
+    hf_num_proc: Optional[int],
+    hf_batch_size: int,
     df: pd.DataFrame,
 ):
     """
@@ -125,6 +127,8 @@ def encode_normalize_features(
                     {
                         "model_name": embedding_models[col],
                         "hf_auth_token": hf_auth_token,
+                        "hf_num_proc": hf_num_proc,
+                        "hf_batch_size": hf_batch_size,
                     }
                     if col in embedding_models
                     else {}
@@ -143,7 +147,9 @@ def encode_normalize_features(
             if col in precomputed_embeddings:  # use precomputed embeddings when given
                 embeddings = precomputed_embeddings[col]
                 assert len(embeddings) == len(df)
-                raw_embeddings[col] = embeddings # also save them here as they are used in report
+                raw_embeddings[
+                    col
+                ] = embeddings  # also save them here as they are used in report
             elif first_entry.lower().endswith(
                 ".wav"
             ):  # TODO: Improve data type inference for raw data
@@ -168,7 +174,7 @@ def encode_normalize_features(
             reduced_embeddings = umap.UMAP(
                 # n_neighbors=min(len(df) - 1, 30),
                 # min_dist=0.0,
-                n_components=8, # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normlization.
+                n_components=8,  # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normlization.
                 random_state=42,
             ).fit_transform(embeddings)
 

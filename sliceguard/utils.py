@@ -172,9 +172,11 @@ def encode_normalize_features(
 
             # TODO: Potentially filter out entries without valid embedding or replace with mean?
             reduced_embeddings = umap.UMAP(
-                # n_neighbors=min(len(df) - 1, 30),
+                n_neighbors=min(embeddings.shape[0] - 1, 15),
+                n_components=min(
+                    embeddings.shape[0]-2, 8
+                ),  # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normlization.
                 # min_dist=0.0,
-                n_components=8,  # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normlization.
                 random_state=42,
             ).fit_transform(embeddings)
 

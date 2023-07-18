@@ -5,6 +5,7 @@ from hnne import HNNE
 import numpy as np
 import pandas as pd
 from fairlearn.metrics import MetricFrame
+from sklearn.cluster import HDBSCAN
 
 
 def generate_metric_frames(
@@ -32,18 +33,28 @@ def generate_metric_frames(
         encoded_data = np.concatenate(
             (encoded_data, np.zeros((encoded_data.shape[0], 1))), axis=1
         )
+    try:
+        hnne = HNNE(
+            metric="euclidean"
+        )  # TODO Probably explore different settings for hnne. Default of metric is cosine. To determine if this is better choice!
+        projection = hnne.fit_transform(encoded_data)
+        partitions = hnne.hierarchy_parameters.partitions
 
-    hnne = HNNE(
-        metric="euclidean"
-    )  # TODO Probably explore different settings for hnne. Default of metric is cosine. To determine if this is better choice!
-    projection = hnne.fit_transform(encoded_data)
-    partitions = hnne.hierarchy_parameters.partitions
-
-    partitions = np.flip(
-        partitions, axis=1
-    )  # reverse the order of the hierarchy levels, go from coarse to fine
-    partition_sizes = hnne.hierarchy_parameters.partition_sizes
-    partition_levels = len(partition_sizes)
+        partitions = np.flip(
+            partitions, axis=1
+        )  # reverse the order of the hierarchy levels, go from coarse to fine
+        partition_sizes = hnne.hierarchy_parameters.partition_sizes
+        partition_levels = len(partition_sizes)
+    except:
+        # The projection might fail if there are not enough data points.
+        # In this case just use other clustering approach as fallback.
+        print("Warning: Using hierarchical clustering failed. Probably the provided datapoints were not enough. HDBSCAN fallback might yield bad results!")
+        hdbscan = HDBSCAN(min_cluster_size=2)
+        hdbscan.fit(encoded_data)
+        partitions=hdbscan.labels_[..., np.newaxis]
+        partition_sizes = [len(np.unique(hdbscan.labels_))]
+        partition_levels = len(partition_sizes)
+        # TODO: This doesn't necessarily make sense as noisy samples will be treated as own cluster. However that is how it is now.
 
     clustering_cols = [f"clustering_{i}" for i in range(partition_levels)]
     clustering_df = pd.DataFrame(

@@ -68,7 +68,7 @@ def generate_metric_frames(
     if remove_outliers == True:
         samplewise_metrics = []
         for idx, sample in df.iterrows():
-            sample_metric = metric([sample[y]], [sample[y_pred]])
+            sample_metric = metric(np.array([sample[y]]), np.array([sample[y_pred]]))
             samplewise_metrics.append(sample_metric)
         clustering_df["metric"] = samplewise_metrics
 

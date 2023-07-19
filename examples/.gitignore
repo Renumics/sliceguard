@@ -12,3 +12,7 @@ dataset.json
 sd_dataset.json
 sd_dataset_scored.json
 sd_dataset_scored_embedded.json
+
+*.gif
+*.png
+*.json

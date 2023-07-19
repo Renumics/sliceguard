@@ -21,6 +21,7 @@ dependencies = [
   "scikit-learn >= 1.2.2",
   "umap-learn >= 0.5.3",
   "transformers >= 4.30.2",
+  "datasets >= 2.13.1",
   "torch >= 2.0.1",
   "torchaudio >= 2.0.2",
   "sentence-transformers >= 2.2.1",

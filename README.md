@@ -63,7 +63,7 @@ Also check this post on Medium:
 - [x] Basic explanation of found issues via feature importances
 - [x] Limited embedding computation for images, audio, text
 - [x] Extended embedding support, e.g., more embedding models and allow precomputed embeddings
-- [ ] Speed up embedding computation using datasets library
+- [x] Speed up embedding computation using datasets library
 - [ ] Soft Dependencies for embedding computation as torch dependencies are large
 - [ ] Improve Spotlight report with embeddings in simmap and histogram for univariate analysis
 - [ ] Extensive documentation and examples for common cases

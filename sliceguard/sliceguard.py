@@ -38,6 +38,7 @@ class SliceGuard:
         min_support: int = None,
         min_drop: float = None,
         metric_mode: Literal["min", "max"] = "max",
+        remove_outliers: bool = False,
         feature_types: Dict[
             str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
         ] = {},
@@ -45,6 +46,8 @@ class SliceGuard:
         precomputed_embeddings: Dict[str, np.array] = {},
         embedding_models: Dict[str, str] = {},
         hf_auth_token=None,
+        hf_num_proc=None,
+        hf_batch_size=1,
     ):
         """
         Find slices that are classified badly by your model.
@@ -57,11 +60,14 @@ class SliceGuard:
         :min_support: Minimum support for clusters that are listed as issues. If you are more looking towards outliers choose small values, if you target biases choose higher values.
         :min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
         :param metric_mode: What do you optimize your metric for? max is the right choice for accuracy while e.g. min is good for regression error.
+        :param remove_outliers: Account for outliers that disturb cluster detection.
         :param feature_types: Specify how your feature should be treated in encoding and normalizing.
         :param feature_orders: If your feature is ordinal, specify the order of that should be used for encoding. This is required for EVERY ordinal feature.
         :param precomputed_embeddings: Supply precomputed embeddings for raw columns. E.g. if repeatedly running checks on your data.
         :param embedding_model: Supply embedding models that should be used to compute embedding vectors from raw data.
         :param hf_auth_token: The authentification token used to download embedding models from the huggingface hub.
+        :param hf_num_proc: Multiprocessing used in audio/image preprocessing.
+        :param hf_batch_size: Batch size used in computing embeddings.
         """
 
         assert (
@@ -94,6 +100,8 @@ class SliceGuard:
             precomputed_embeddings,
             embedding_models,
             hf_auth_token,
+            hf_num_proc,
+            hf_batch_size,
             df,
         )
 
@@ -107,14 +115,20 @@ class SliceGuard:
             clustering_df,
             clustering_cols,
             clustering_metric_cols,
-        ) = generate_metric_frames(encoded_data, df, y, y_pred, metric)
+        ) = generate_metric_frames(encoded_data, df, y, y_pred, metric, remove_outliers)
 
         if len(mfs) > 0:
             overall_metric = mfs[0].overall.values[0]
             print(f"The overall metric value is {overall_metric}")
 
         group_dfs = detect_issues(
-            mfs, clustering_df, clustering_cols, min_drop, min_support, metric_mode
+            mfs,
+            clustering_df,
+            clustering_cols,
+            min_drop,
+            min_support,
+            metric_mode,
+            remove_outliers,
         )
 
         num_issues = np.sum([group_df["issue"].sum() for group_df in group_dfs])
@@ -210,7 +224,7 @@ class SliceGuard:
 
         spotlight.show(
             df,
-            dtype={ **spotlight_dtype, **embedding_dtypes},
+            dtype={**spotlight_dtype, **embedding_dtypes},
             issues=np.array(data_issues)[data_issue_order].tolist(),
             layout=layout.layout(
                 [
@@ -221,7 +235,9 @@ class SliceGuard:
                 [[layout.widgets.Inspector()], [layout.widgets.Issues()]],
             ),
         )
-        return df # Return the create report dataframe in case caller wants to process it
+        return (
+            df  # Return the create report dataframe in case caller wants to process it
+        )
 
     def _plot_clustering_overview(self):
         """

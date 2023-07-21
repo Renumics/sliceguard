@@ -4,7 +4,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import f1_score
 
 
-def explain_clusters(features, feature_types, issue_df, df, prereduced_embeddings):
+def explain_clusters(features, feature_types, issues, df, prereduced_embeddings):
     """
     Method to generate explanations on why clusters are problematic or different from the rest of the data.
 
@@ -62,14 +62,11 @@ def explain_clusters(features, feature_types, issue_df, df, prereduced_embedding
     # Fit tree to generate feature importances
     # TODO: Potentially replace with simpler univariate mechanism, see also spotlight relevance score
     # TODO: Probably try shap or something similar
-    issue_df["issue_explanation"] = ""
 
-    for issue in issue_df["issue"].unique():
-        if issue == -1:  # Skip data points with no issues
-            continue
-        issue_indices_pandas = issue_df[issue_df["issue"] == issue].index
-        issue_indices_list = np.where(issue_df["issue"] == issue)[0]
-        y = np.zeros(len(issue_df))
+    for issue in issues:
+        issue_indices_pandas = issue["indices"]
+        issue_indices_list = np.where(df.index.isin(issue["indices"]))[0]
+        y = np.zeros(len(df))
         y[issue_indices_list] = 1
         clf = DecisionTreeClassifier(
             max_depth=3, max_features=4
@@ -98,7 +95,5 @@ def explain_clusters(features, feature_types, issue_df, df, prereduced_embedding
         importance_strings = []
         for f, i in zip(ordered_features[:3], ordered_importances[:3]):
             importance_strings.append(f"{f}, ({i:.2f})")
-        issue_df.loc[issue_indices_pandas, "issue_explanation"] = ", ".join(
-            importance_strings
-        )
-    return issue_df
+        issue["explanation"] = ", ".join(importance_strings)
+    return issues

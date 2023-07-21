@@ -7,6 +7,8 @@ import pandas as pd
 from fairlearn.metrics import MetricFrame
 from sklearn.cluster import HDBSCAN
 
+import matplotlib.pyplot as plt
+
 
 def generate_metric_frames(
     encoded_data: np.array,
@@ -45,13 +47,16 @@ def generate_metric_frames(
         )  # reverse the order of the hierarchy levels, go from coarse to fine
         partition_sizes = hnne.hierarchy_parameters.partition_sizes
         partition_levels = len(partition_sizes)
+
     except:
         # The projection might fail if there are not enough data points.
         # In this case just use other clustering approach as fallback.
-        print("Warning: Using hierarchical clustering failed. Probably the provided datapoints were not enough. HDBSCAN fallback might yield bad results!")
+        print(
+            "Warning: Using hierarchical clustering failed. Probably the provided datapoints were not enough. HDBSCAN fallback might yield bad results!"
+        )
         hdbscan = HDBSCAN(min_cluster_size=2)
         hdbscan.fit(encoded_data)
-        partitions=hdbscan.labels_[..., np.newaxis]
+        partitions = hdbscan.labels_[..., np.newaxis]
         partition_sizes = [len(np.unique(hdbscan.labels_))]
         partition_levels = len(partition_sizes)
         # TODO: This doesn't necessarily make sense as noisy samples will be treated as own cluster. However that is how it is now.
@@ -135,8 +140,6 @@ def detect_issues(
     )
     print(f"Using {min_drop} as minimum drop for determining problematic clusters.")
 
-    previous_group_df = None
-    previous_clustering_col = None
     for mf, clustering_col in zip(mfs, clustering_cols):
         # Calculate cluster support
         drops = (
@@ -220,25 +223,6 @@ def detect_issues(
             "issue",
         ] = True
 
-        # Unmark parent cluster if drop shows mostly on this level
-        if previous_group_df is not None:
-            for cluster, row in group_df.iterrows():
-                group_entries = clustering_df[clustering_df[clustering_col] == cluster]
-                assert (
-                    group_entries[previous_clustering_col].values[0]
-                    == group_entries[previous_clustering_col].values
-                ).all()
-                parent_cluster = group_entries[previous_clustering_col].values[0]
-
-                if (
-                    row[support_col] > min_support and row[drop_col] > min_drop
-                ):  # TODO Verify this rule makes sense, could cause larger clusters to be discarded because of one also bad subcluster
-                    previous_group_df.loc[parent_cluster, "issue"] = False
-                else:
-                    group_df.loc[cluster, "issue"] = False
-
         group_dfs.append(group_df)
 
-        previous_group_df = group_df
-        previous_clustering_col = clustering_col
     return group_dfs

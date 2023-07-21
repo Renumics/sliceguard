@@ -136,9 +136,7 @@ class SliceGuard:
         print(f"Identified {num_issues} problematic slices.")
 
         # Construct the issue dataframe that is returned by this method
-        issue_df = pd.DataFrame(data=[-1] * len(df), columns=["issue"], index=df.index)
-        issue_df["issue"] = issue_df["issue"].astype(int)
-        issue_df["issue_metric"] = np.nan
+        issues = []
 
         issue_index = 0
         for _, (group_df, clustering_col, clustering_metric_col) in enumerate(
@@ -146,31 +144,36 @@ class SliceGuard:
         ):
             hierarchy_issues = group_df[group_df["issue"] == True].index
             for issue in hierarchy_issues:
+                current_issue = {"id": issue_index}
                 issue_indices = clustering_df[
                     clustering_df[clustering_col] == issue
                 ].index.values
-                issue_df.loc[issue_indices, "issue"] = issue_index
+                current_issue["indices"] = issue_indices
+
                 issue_metric = clustering_df[clustering_df[clustering_col] == issue][
                     clustering_metric_col
                 ].values[0]
-                issue_df.loc[issue_indices, "issue_metric"] = issue_metric
+                current_issue["metric"] = issue_metric
+
+                issues.append(current_issue)
+
                 issue_index += 1
 
         # Derive rules that are characteristic for each identified problem slice
         # This is done to help understanding of the problem reason
         # First stage this will be only importance values!
-        issue_df = explain_clusters(
-            features, feature_types, issue_df, df, prereduced_embeddings
+        issues = explain_clusters(
+            features, feature_types, issues, df, prereduced_embeddings
         )
 
-        self._issue_df = issue_df
+        self._issues = issues
         self._clustering_df = clustering_df
         self._clustering_cols = clustering_cols
         self._metric_mode = metric_mode
         self._df = df
         self.embeddings = raw_embeddings
 
-        return issue_df
+        return issues
 
     def report(self, spotlight_dtype: Dict[str, spotlight.dtypes.base.DType] = {}):
         """
@@ -178,11 +181,9 @@ class SliceGuard:
         :param spotlight_dtype: Define a datatype mapping for the interactive spotlight report. Will be passed to dtypes parameter of spotlight.show.
         """
         # Some basic checks
-        assert self._issue_df is not None
-        assert len(self._df) == len(self._issue_df)
-        assert all(self._df.index == self._issue_df.index)
+        assert self._issues is not None
 
-        df = pd.concat((self._df, self._issue_df), axis=1)
+        df = self._df.copy()
 
         # Insert embeddings if they were computed
         embedding_dtypes = {}
@@ -193,21 +194,14 @@ class SliceGuard:
 
         data_issue_severity = []
         data_issues = []
-        for issue in self._issue_df["issue"].unique():
+        for issue in self._issues:
             if issue == -1:
                 continue
-            issue_rows = np.where(self._issue_df["issue"] == issue)[
+            issue_rows = np.where(df.index.isin(issue["indices"]))[
                 0
             ].tolist()  # Note: Has to be row index not pandas index!
-            issue_metric = self._issue_df[self._issue_df["issue"] == issue].iloc[0][
-                "issue_metric"
-            ]
-            issue_explanation = (
-                f"{issue_metric:.2f} -> "
-                + self._issue_df[self._issue_df["issue"] == issue].iloc[0][
-                    "issue_explanation"
-                ]
-            )
+            issue_metric = issue["metric"]
+            issue_explanation = f"{issue_metric:.2f} -> " + issue["explanation"]
 
             data_issue = DataIssue(
                 severity="medium",

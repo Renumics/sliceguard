@@ -139,12 +139,14 @@ class SliceGuard:
         issues = []
 
         issue_index = 0
-        for _, (group_df, clustering_col, clustering_metric_col) in enumerate(
-            zip(group_dfs, clustering_cols, clustering_metric_cols)
-        ):
+        for hierarchy_level, (
+            group_df,
+            clustering_col,
+            clustering_metric_col,
+        ) in enumerate(zip(group_dfs, clustering_cols, clustering_metric_cols)):
             hierarchy_issues = group_df[group_df["issue"] == True].index
             for issue in hierarchy_issues:
-                current_issue = {"id": issue_index}
+                current_issue = {"id": issue_index, "level": hierarchy_level}
                 issue_indices = clustering_df[
                     clustering_df[clustering_col] == issue
                 ].index.values
@@ -195,8 +197,6 @@ class SliceGuard:
         data_issue_severity = []
         data_issues = []
         for issue in self._issues:
-            if issue == -1:
-                continue
             issue_rows = np.where(df.index.isin(issue["indices"]))[
                 0
             ].tolist()  # Note: Has to be row index not pandas index!

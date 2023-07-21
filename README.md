@@ -55,10 +55,6 @@ sg.report()
 * [Selecting the best (and worst) generated images of Stable Diffusion](examples/stable_diffusion_evaluation.ipynb)
 
 
-Also check this post on Medium:
-
-[Evaluating automatic speech recognition models beyond global metrics — A tutorial using OpenAI’s Whisper as an example](https://medium.com/@daniel-klitzke/evaluating-automatic-speech-recognition-models-beyond-global-metrics-a-tutorial-using-openais-54b63c4dadbd)
-
 ## 🗺️ Public Roadmap
 - [x] Detection of problematic data slices
 - [x] Basic explanation of found issues via feature importances

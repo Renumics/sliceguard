@@ -48,8 +48,6 @@ def generate_metric_frames(
         partition_sizes = hnne.hierarchy_parameters.partition_sizes
         partition_levels = len(partition_sizes)
 
-        print(partition_sizes)
-
     except:
         # The projection might fail if there are not enough data points.
         # In this case just use other clustering approach as fallback.

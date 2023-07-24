@@ -3,11 +3,10 @@ import numpy as np
 from typing import List, Literal, Dict
 
 import plotly.express as px
-import plotly.io as pio
+from dash import Dash, html, dcc, callback, Output, Input
 
 
 def prepare_report(mfs, clustering_df, clustering_cols, metric_mode):
-    # TODO: Choose support and drop level automatically or potentially incorporate multiple levels?!
     all_drops = []
     all_supports = []
     for mf, clustering_col in zip(mfs, clustering_cols):
@@ -26,7 +25,6 @@ def prepare_report(mfs, clustering_df, clustering_cols, metric_mode):
         all_supports.extend(supports)
 
     drop_support_df = pd.DataFrame(data={"support": all_supports, "drop": all_drops})
-    pio.renderers.default = "browser"
     fig = px.density_heatmap(
         drop_support_df,
         x="drop",
@@ -36,4 +34,14 @@ def prepare_report(mfs, clustering_df, clustering_cols, metric_mode):
         color_continuous_scale="Viridis",
         text_auto=True,
     )
-    fig.show()
+
+
+
+    app = Dash(__name__)
+
+    app.layout = html.Div([
+    html.H1(children='sliceguard Interactive Report', style={'textAlign':'center'}),
+    dcc.Graph(figure=fig)
+    ])
+
+    app.run()

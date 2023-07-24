@@ -20,12 +20,64 @@ from renumics.spotlight import layout
 from .utils import infer_feature_types, encode_normalize_features
 from .detection import generate_metric_frames, detect_issues
 from .explanation import explain_clusters
+from .report import generate_report
 
 
 class SliceGuard:
     """
     The main class for detecting issues in your data
     """
+
+    def summary_report(
+        self,
+        data: pd.DataFrame,
+        features: List[str],
+        y: str,
+        y_pred: str,
+        metric: Callable,
+        metric_mode: Literal["min", "max"] = "max",
+        remove_outliers: bool = False,
+        feature_types: Dict[
+            str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
+        ] = {},
+        feature_orders: Dict[str, list] = {},
+        precomputed_embeddings: Dict[str, np.array] = {},
+        embedding_models: Dict[str, str] = {},
+        hf_auth_token=None,
+        hf_num_proc=None,
+        hf_batch_size=1,
+    ):
+        """
+        Function to generate a summary report, serving as starting point for looking deeper into the data.
+        """
+        df = data  # assign to shorter name
+
+        (
+            feature_types,
+            encoded_data,
+            mfs,
+            clustering_df,
+            clustering_cols,
+            clustering_metric_cols,
+            prereduced_embeddings,
+            raw_embeddings,
+        ) = self._prepare_data(
+            df,
+            features,
+            y,
+            y_pred,
+            metric,
+            remove_outliers,
+            feature_types=feature_types,
+            feature_orders=feature_orders,
+            precomputed_embeddings=precomputed_embeddings,
+            embedding_models=embedding_models,
+            hf_auth_token=hf_auth_token,
+            hf_num_proc=hf_num_proc,
+            hf_batch_size=hf_batch_size,
+        )
+
+        generate_report(mfs, clustering_df, clustering_cols, metric_mode)
 
     # TODO: Introduce control features to account for expected variations
     def find_issues(
@@ -69,53 +121,32 @@ class SliceGuard:
         :param hf_num_proc: Multiprocessing used in audio/image preprocessing.
         :param hf_batch_size: Batch size used in computing embeddings.
         """
-
-        assert (
-            (
-                all(
-                    [
-                        (f in data.columns or f in precomputed_embeddings)
-                        for f in features
-                    ]
-                )
-            )
-            and (y in data.columns)
-            and (y_pred in data.columns)
-        )  # check presence of all columns
-        df = data  # just rename the variable for shorter naming
-
-        # Try to infer the column dtypes
-        feature_types = infer_feature_types(
-            features, feature_types, precomputed_embeddings, df
-        )
-
-        # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant
-        # See also connection with full report functionality. It makes sense to habe a feature and a samples based view!
-
-        # Encode the features for clustering according to inferred types
-        encoded_data, prereduced_embeddings, raw_embeddings = encode_normalize_features(
-            features,
-            feature_types,
-            feature_orders,
-            precomputed_embeddings,
-            embedding_models,
-            hf_auth_token,
-            hf_num_proc,
-            hf_batch_size,
-            df,
-        )
-
-        # Perform detection of problematic clusters based on the given features
-        # 1. A hierarchical clustering is performed and metrics are calculated for all hierarchies
-        # 2. hierarchy level that is most indicative of a real problem is then determined
-        # 3. the reason for the problem e.g. feature combination or rule that is characteristic for the cluster is determined.
+        df = data  # assign to shorter name
 
         (
+            feature_types,
+            encoded_data,
             mfs,
             clustering_df,
             clustering_cols,
             clustering_metric_cols,
-        ) = generate_metric_frames(encoded_data, df, y, y_pred, metric, remove_outliers)
+            prereduced_embeddings,
+            raw_embeddings,
+        ) = self._prepare_data(
+            df,
+            features,
+            y,
+            y_pred,
+            metric,
+            remove_outliers,
+            feature_types=feature_types,
+            feature_orders=feature_orders,
+            precomputed_embeddings=precomputed_embeddings,
+            embedding_models=embedding_models,
+            hf_auth_token=hf_auth_token,
+            hf_num_proc=hf_num_proc,
+            hf_batch_size=hf_batch_size,
+        )
 
         if len(mfs) > 0:
             overall_metric = mfs[0].overall.values[0]
@@ -231,6 +262,83 @@ class SliceGuard:
         )
         return (
             df  # Return the create report dataframe in case caller wants to process it
+        )
+
+    def _prepare_data(
+        self,
+        data: pd.DataFrame,
+        features: List[str],
+        y: str,
+        y_pred: str,
+        metric: Callable,
+        remove_outliers: bool = False,
+        feature_types: Dict[
+            str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
+        ] = {},
+        feature_orders: Dict[str, list] = {},
+        precomputed_embeddings: Dict[str, np.array] = {},
+        embedding_models: Dict[str, str] = {},
+        hf_auth_token=None,
+        hf_num_proc=None,
+        hf_batch_size=1,
+    ):
+        assert (
+            (
+                all(
+                    [
+                        (f in data.columns or f in precomputed_embeddings)
+                        for f in features
+                    ]
+                )
+            )
+            and (y in data.columns)
+            and (y_pred in data.columns)
+        )  # check presence of all columns
+
+        df = data  # just rename the variable for shorter naming
+
+        # Try to infer the column dtypes
+        feature_types = infer_feature_types(
+            features, feature_types, precomputed_embeddings, df
+        )
+
+        # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant
+        # See also connection with full report functionality. It makes sense to habe a feature and a samples based view!
+
+        # Encode the features for clustering according to inferred types
+        encoded_data, prereduced_embeddings, raw_embeddings = encode_normalize_features(
+            features,
+            feature_types,
+            feature_orders,
+            precomputed_embeddings,
+            embedding_models,
+            hf_auth_token,
+            hf_num_proc,
+            hf_batch_size,
+            df,
+        )
+
+        # Perform detection of problematic clusters based on the given features
+        # 1. A hierarchical clustering is performed and metrics are calculated for all hierarchies
+        # 2. hierarchy level that is most indicative of a real problem is then determined
+        # 3. the reason for the problem e.g. feature combination or rule that is characteristic for the cluster is determined.
+
+        (
+            mfs,
+            clustering_df,
+            clustering_cols,
+            clustering_metric_cols,
+        ) = generate_metric_frames(encoded_data, df, y, y_pred, metric, remove_outliers)
+
+        return (
+            feature_types,
+            encoded_data,
+            mfs,
+            clustering_df,
+            clustering_cols,
+            clustering_metric_cols,
+            prereduced_embeddings,
+            raw_embeddings,
         )
 
     def _plot_clustering_overview(self):

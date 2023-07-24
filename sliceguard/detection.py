@@ -7,8 +7,6 @@ import pandas as pd
 from fairlearn.metrics import MetricFrame
 from sklearn.cluster import HDBSCAN
 
-import matplotlib.pyplot as plt
-
 
 def generate_metric_frames(
     encoded_data: np.array,

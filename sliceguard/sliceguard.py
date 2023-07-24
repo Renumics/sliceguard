@@ -20,7 +20,7 @@ from renumics.spotlight import layout
 from .utils import infer_feature_types, encode_normalize_features
 from .detection import generate_metric_frames, detect_issues
 from .explanation import explain_clusters
-from .report import generate_report
+from .report import prepare_report
 
 
 class SliceGuard:
@@ -53,7 +53,6 @@ class SliceGuard:
         """
         df = data  # assign to shorter name
 
-
         print("Please wait. sliceguard is preparing your data.")
         (
             feature_types,
@@ -80,7 +79,7 @@ class SliceGuard:
             hf_batch_size=hf_batch_size,
         )
 
-        generate_report(mfs, clustering_df, clustering_cols, metric_mode)
+        prepare_report(mfs, clustering_df, clustering_cols, metric_mode)
 
     # TODO: Introduce control features to account for expected variations
     def find_issues(

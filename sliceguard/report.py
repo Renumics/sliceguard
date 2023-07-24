@@ -6,7 +6,7 @@ import plotly.express as px
 import plotly.io as pio
 
 
-def generate_report(mfs, clustering_df, clustering_cols, metric_mode):
+def prepare_report(mfs, clustering_df, clustering_cols, metric_mode):
     # TODO: Choose support and drop level automatically or potentially incorporate multiple levels?!
     all_drops = []
     all_supports = []

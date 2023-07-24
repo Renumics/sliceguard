@@ -28,7 +28,7 @@ class SliceGuard:
     The main class for detecting issues in your data
     """
 
-    def summary_report(
+    def show(
         self,
         data: pd.DataFrame,
         features: List[str],
@@ -48,10 +48,13 @@ class SliceGuard:
         hf_batch_size=1,
     ):
         """
-        Function to generate a summary report, serving as starting point for looking deeper into the data.
+        Function to generate an interactive report that allows limited interactive exploration and
+        serves as starting point for detailed analysis in spotlight.
         """
         df = data  # assign to shorter name
 
+
+        print("Please wait. sliceguard is preparing your data.")
         (
             feature_types,
             encoded_data,

@@ -32,14 +32,43 @@ def generate_metric_frames(
     :param remove_outliers: Compute metric in a non-vectorized way for each sample and remove outliers.
 
     """
-    # Special case, only one nominal feature where binning and clustering makes no sense.
+    # Special cases, only one or two nominal feature where binning and clustering makes no sense.
     # Encoded data will not be used in this case, instead there will be one clustering with one entry
     # for each category.
-    if len(feature_types.values()) == 1 and list(feature_types.values())[0] == "nominal":
+    if (
+        len(feature_types.values()) == 1
+        and list(feature_types.values())[0] == "nominal"
+    ):
         clustering_cols = ["clustering_0"]
         clustering_df = pd.DataFrame(
-            data=LabelEncoder().fit_transform(df[list(feature_types.keys())[0]]), columns=clustering_cols, index=df.index
-        ) # TODO: Possible track relation between integers and real categorical values for nicer explanations.
+            data=LabelEncoder().fit_transform(df[list(feature_types.keys())[0]]),
+            columns=clustering_cols,
+            index=df.index,
+        )  # TODO: Possible track relation between integers and real categorical values for nicer explanations.
+    elif (
+        len(feature_types.values()) == 2
+        and list(feature_types.values())[0] == "nominal"
+        and list(feature_types.values())[1] == "nominal"
+    ):
+        combinations = (
+            df[[list(feature_types.keys())[0], list(feature_types.keys())[1]]]
+            .value_counts()
+            .index.values
+        )
+        copied_df = df.copy()
+        copied_df["combination_id"] = -1
+        for i, combination in enumerate(combinations):
+            copied_df.loc[
+                (copied_df[list(feature_types.keys())[0]] == combination[0])
+                & (copied_df[list(feature_types.keys())[1]] == combination[1]),
+                "combination_id",
+            ] = i
+        clustering_cols = ["clustering_0"]
+        clustering_df = pd.DataFrame(
+            data=LabelEncoder().fit_transform(copied_df["combination_id"]),
+            columns=clustering_cols,
+            index=df.index,
+        )  # TODO: Possible track relation between integers and real categorical values for nicer explanations.
     else:
         # All other cases are handled here in an implicit way. Clustering is used for binning.
         # Identify hierarchical clustering with h-nne

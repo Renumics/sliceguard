@@ -61,12 +61,13 @@ sg.report()
 - [x] Limited embedding computation for images, audio, text
 - [x] Extended embedding support, e.g., more embedding models and allow precomputed embeddings
 - [x] Speed up embedding computation using datasets library
+- [x] Improved issue detection algorithm, avoiding duplicate detections of similar problems and outliers influencing the segment detection
+- [ ] Adaptive drop reference for datasets that contain a wide variety of data
+- [ ] Generation of a summary report doing predefined checks
+- [ ] Allow for control features in order to account for expected variations when running checks
+- [ ] Different interfaces from min_drop, min_support. Maybe n_slices and sort by criterion?
 - [ ] Soft Dependencies for embedding computation as torch dependencies are large
-- [ ] Improve Spotlight report with embeddings in simmap and histogram for univariate analysis
 - [ ] Extensive documentation and examples for common cases
 - [ ] Data connectors for faster application on common data formats
 - [ ] Improved explanations for found issues, e.g., via SHAP
-- [ ] Generation of a summary report doing predefined checks
-- [ ] Allow for control features in order to account for expected variations when running checks
-- [ ] Improved issue detection algorithm, avoiding duplicate detections of similar problems and outliers influencing the segment detection
 - [ ] Large data support for detection and reporting, e.g., 500k audio samples with transcriptions

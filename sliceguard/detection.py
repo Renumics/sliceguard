@@ -1,4 +1,4 @@
-from typing import Callable, List, Literal
+from typing import Callable, List, Dict, Literal
 import math
 
 from hnne import HNNE
@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from fairlearn.metrics import MetricFrame
 from sklearn.cluster import HDBSCAN
+from sklearn.preprocessing import LabelEncoder
 
 
 def generate_metric_frames(
@@ -14,6 +15,9 @@ def generate_metric_frames(
     y: str,
     y_pred: str,
     metric: Callable,
+    feature_types: Dict[
+        str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
+    ],
     remove_outliers: bool,
 ):
     """
@@ -24,45 +28,57 @@ def generate_metric_frames(
     :param y: The name of the ground-truth column.
     :param y_pred: The name of the predictions column.
     :param metric: The metric function.
+    :param feature_types: The types of all features present in the encoded_data. Used to determine "univariate" case.
+    :param remove_outliers: Compute metric in a non-vectorized way for each sample and remove outliers.
 
     """
-    # Identify hierarchical clustering with h-nne
-    # As h-nne fails for less than 2 dimenions introduce dummy dimension in this case
-    num_features = encoded_data.shape[1]
-    if num_features <= 1:
-        encoded_data = np.concatenate(
-            (encoded_data, np.zeros((encoded_data.shape[0], 1))), axis=1
+    # Special case, only one nominal feature where binning and clustering makes no sense.
+    # Encoded data will not be used in this case, instead there will be one clustering with one entry
+    # for each category.
+    if len(feature_types.values()) == 1 and list(feature_types.values())[0] == "nominal":
+        clustering_cols = ["clustering_0"]
+        clustering_df = pd.DataFrame(
+            data=LabelEncoder().fit_transform(df[list(feature_types.keys())[0]]), columns=clustering_cols, index=df.index
+        ) # TODO: Possible track relation between integers and real categorical values for nicer explanations.
+    else:
+        # All other cases are handled here in an implicit way. Clustering is used for binning.
+        # Identify hierarchical clustering with h-nne
+        # As h-nne fails for less than 2 dimensions introduce dummy dimension in this case
+        num_features = encoded_data.shape[1]
+        if num_features <= 1:
+            encoded_data = np.concatenate(
+                (encoded_data, np.zeros((encoded_data.shape[0], 1))), axis=1
+            )
+        try:
+            hnne = HNNE(
+                metric="euclidean"
+            )  # TODO Probably explore different settings for hnne. Default of metric is cosine. To determine if this is better choice!
+            projection = hnne.fit_transform(encoded_data)
+            partitions = hnne.hierarchy_parameters.partitions
+
+            partitions = np.flip(
+                partitions, axis=1
+            )  # reverse the order of the hierarchy levels, go from coarse to fine
+            partition_sizes = hnne.hierarchy_parameters.partition_sizes
+            partition_levels = len(partition_sizes)
+
+        except:
+            # The projection might fail if there are not enough data points.
+            # In this case just use other clustering approach as fallback.
+            print(
+                "Warning: Using hierarchical clustering failed. Probably the provided datapoints were not enough. HDBSCAN fallback might yield bad results!"
+            )
+            hdbscan = HDBSCAN(min_cluster_size=2)
+            hdbscan.fit(encoded_data)
+            partitions = hdbscan.labels_[..., np.newaxis]
+            partition_sizes = [len(np.unique(hdbscan.labels_))]
+            partition_levels = len(partition_sizes)
+            # TODO: This doesn't necessarily make sense as noisy samples will be treated as own cluster. However that is how it is now.
+
+        clustering_cols = [f"clustering_{i}" for i in range(partition_levels)]
+        clustering_df = pd.DataFrame(
+            data=partitions, columns=clustering_cols, index=df.index
         )
-    try:
-        hnne = HNNE(
-            metric="euclidean"
-        )  # TODO Probably explore different settings for hnne. Default of metric is cosine. To determine if this is better choice!
-        projection = hnne.fit_transform(encoded_data)
-        partitions = hnne.hierarchy_parameters.partitions
-
-        partitions = np.flip(
-            partitions, axis=1
-        )  # reverse the order of the hierarchy levels, go from coarse to fine
-        partition_sizes = hnne.hierarchy_parameters.partition_sizes
-        partition_levels = len(partition_sizes)
-
-    except:
-        # The projection might fail if there are not enough data points.
-        # In this case just use other clustering approach as fallback.
-        print(
-            "Warning: Using hierarchical clustering failed. Probably the provided datapoints were not enough. HDBSCAN fallback might yield bad results!"
-        )
-        hdbscan = HDBSCAN(min_cluster_size=2)
-        hdbscan.fit(encoded_data)
-        partitions = hdbscan.labels_[..., np.newaxis]
-        partition_sizes = [len(np.unique(hdbscan.labels_))]
-        partition_levels = len(partition_sizes)
-        # TODO: This doesn't necessarily make sense as noisy samples will be treated as own cluster. However that is how it is now.
-
-    clustering_cols = [f"clustering_{i}" for i in range(partition_levels)]
-    clustering_df = pd.DataFrame(
-        data=partitions, columns=clustering_cols, index=df.index
-    )
 
     # Calculate samplewise metric in order to delete well performing samples from clusters
     # This is done as the clustering does probably contain outliers in some cases that influence the

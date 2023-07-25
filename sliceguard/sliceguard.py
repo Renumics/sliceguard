@@ -304,6 +304,8 @@ class SliceGuard:
             features, feature_types, precomputed_embeddings, df
         )
 
+         
+
         # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant
         # See also connection with full report functionality. It makes sense to habe a feature and a samples based view!
 
@@ -330,7 +332,7 @@ class SliceGuard:
             clustering_df,
             clustering_cols,
             clustering_metric_cols,
-        ) = generate_metric_frames(encoded_data, df, y, y_pred, metric, remove_outliers)
+        ) = generate_metric_frames(encoded_data, df, y, y_pred, metric, feature_types, remove_outliers)
 
         return (
             feature_types,

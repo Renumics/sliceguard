@@ -69,5 +69,6 @@ sg.report()
 - [ ] Soft Dependencies for embedding computation as torch dependencies are large
 - [ ] Extensive documentation and examples for common cases
 - [ ] Data connectors for faster application on common data formats
+- [ ] Support embedding generation for remote resources, e.g. audio/images hosted on webservers
 - [ ] Improved explanations for found issues, e.g., via SHAP
 - [ ] Large data support for detection and reporting, e.g., 500k audio samples with transcriptions

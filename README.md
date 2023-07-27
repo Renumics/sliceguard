@@ -64,6 +64,7 @@ sg.report()
 - [x] Improved issue detection algorithm, avoiding duplicate detections of similar problems and outliers influencing the segment detection
 - [ ] Support application without model (by training simple baseline model)
 - [ ] Support application on datasets without labels (outlier based)
+- [ ] Interpretable features for images, audio, text. E.g., dark image, quiet audio, long audio, contains common word x, ...
 - [ ] Adaptive drop reference for datasets that contain a wide variety of data
 - [ ] Generation of a summary report doing predefined checks
 - [ ] Allow for control features in order to account for expected variations when running checks

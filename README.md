@@ -62,6 +62,8 @@ sg.report()
 - [x] Extended embedding support, e.g., more embedding models and allow precomputed embeddings
 - [x] Speed up embedding computation using datasets library
 - [x] Improved issue detection algorithm, avoiding duplicate detections of similar problems and outliers influencing the segment detection
+- [ ] Support application without model (by training simple baseline model)
+- [ ] Support application on datasets without labels (outlier based)
 - [ ] Adaptive drop reference for datasets that contain a wide variety of data
 - [ ] Generation of a summary report doing predefined checks
 - [ ] Allow for control features in order to account for expected variations when running checks

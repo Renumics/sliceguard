@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, RobustScaler
 import umap
 
-from .embedding_utils import (
+from .embeddings import (
     generate_image_embeddings,
     generate_audio_embeddings,
     generate_text_embeddings,

@@ -86,9 +86,9 @@ class SliceGuard:
         self,
         data: pd.DataFrame,
         features: List[str],
-        y: str,
-        y_pred: str,
-        metric: Callable,
+        y: str = None,
+        y_pred: str = None,
+        metric: Callable = None,
         min_support: int = None,
         min_drop: float = None,
         metric_mode: Literal["min", "max"] = "max",
@@ -293,8 +293,8 @@ class SliceGuard:
                     ]
                 )
             )
-            and (y in data.columns)
-            and (y_pred in data.columns)
+            and ((y_pred is not None) and (y is not None)) # Completly supervised case
+            or (y_pred is not None and y is not None) # Completely unsupervised case (outlier based)
         )  # check presence of all columns
 
         df = data  # just rename the variable for shorter naming
@@ -321,6 +321,9 @@ class SliceGuard:
             hf_batch_size,
             df,
         )
+
+        # If y 
+
 
         # Perform detection of problematic clusters based on the given features
         # 1. A hierarchical clustering is performed and metrics are calculated for all hierarchies

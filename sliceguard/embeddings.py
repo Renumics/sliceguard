@@ -137,8 +137,6 @@ def generate_audio_embeddings(
 
     df = pd.DataFrame(data={"audio": audio_paths})
 
-    print(feature_extractor.sampling_rate)
-
     dataset = datasets.Dataset.from_pandas(df).cast_column("audio", datasets.Audio(sampling_rate=feature_extractor.sampling_rate))
 
     extract_fn = _extract_embeddings_audios(

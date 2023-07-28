@@ -6,6 +6,7 @@ warnings.simplefilter("ignore", category=NumbaDeprecationWarning)
 warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 
 # Real imports
+from uuid import uuid4
 from typing import List, Literal, Dict, Callable
 
 import pandas as pd
@@ -20,6 +21,7 @@ from renumics.spotlight import layout
 from .utils import infer_feature_types, encode_normalize_features
 from .detection import generate_metric_frames, detect_issues
 from .explanation import explain_clusters
+from .modeling import fit_outlier_detection_model
 from .report import prepare_report
 
 
@@ -123,7 +125,7 @@ class SliceGuard:
         :param hf_num_proc: Multiprocessing used in audio/image preprocessing.
         :param hf_batch_size: Batch size used in computing embeddings.
         """
-        df = data  # assign to shorter name
+        df = data.copy()  # assign to shorter name
 
         (
             feature_types,
@@ -285,17 +287,11 @@ class SliceGuard:
         hf_batch_size=1,
     ):
         assert (
-            (
-                all(
-                    [
-                        (f in data.columns or f in precomputed_embeddings)
-                        for f in features
-                    ]
-                )
-            )
-            and ((y_pred is not None) and (y is not None)) # Completly supervised case
-            or (y_pred is not None and y is not None) # Completely unsupervised case (outlier based)
-        )  # check presence of all columns
+            all([(f in data.columns or f in precomputed_embeddings) for f in features])
+        ) and (
+            ((y_pred is not None) and (y is not None))  # Completly supervised case
+            or ((y_pred is None) and (y is None))
+        )  # Completely unsupervised case (outlier based)  # check presence of all columns
 
         df = data  # just rename the variable for shorter naming
 
@@ -303,8 +299,6 @@ class SliceGuard:
         feature_types = infer_feature_types(
             features, feature_types, precomputed_embeddings, df
         )
-
-         
 
         # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant
         # See also connection with full report functionality. It makes sense to habe a feature and a samples based view!
@@ -322,8 +316,24 @@ class SliceGuard:
             df,
         )
 
-        # If y 
+        # If y and y_pred are non use an outlier detection algorithm to detect potential issues in the data.
+        # Lateron there could be also a case where y is given but no y_pred is given. Then just train a task specific surrogate model.
+        # However, besides regression and classification cases this could be much work. Consider using FLAML or other automl tooling here.
+        if y is None and y_pred is None:
+            ol_scores = fit_outlier_detection_model(encoded_data)
+            ol_model_id = str(uuid4())
 
+            y= f"{ol_model_id}_y"
+            df[y] = ol_scores
+
+            y_pred = f"{ol_model_id}_y_pred"
+            df[y_pred] = ol_scores
+            
+
+            def return_y_pred_mean(y, y_pred):
+                return np.mean(y_pred)
+
+            metric = return_y_pred_mean
 
         # Perform detection of problematic clusters based on the given features
         # 1. A hierarchical clustering is performed and metrics are calculated for all hierarchies
@@ -335,7 +345,9 @@ class SliceGuard:
             clustering_df,
             clustering_cols,
             clustering_metric_cols,
-        ) = generate_metric_frames(encoded_data, df, y, y_pred, metric, feature_types, remove_outliers)
+        ) = generate_metric_frames(
+            encoded_data, df, y, y_pred, metric, feature_types, remove_outliers
+        )
 
         return (
             feature_types,

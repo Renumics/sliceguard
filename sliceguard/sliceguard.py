@@ -37,7 +37,7 @@ class SliceGuard:
         y: str = None,
         y_pred: str = None,
         metric: Callable = None,
-        metric_mode: Literal["min", "max"] = "max",
+        metric_mode: Literal["min", "max"] = None,
         drop_reference: Literal["overall", "parent"] = "overall",
         remove_outliers: bool = False,
         feature_types: Dict[
@@ -94,7 +94,7 @@ class SliceGuard:
         metric: Callable = None,
         min_support: int = None,
         min_drop: float = None,
-        metric_mode: Literal["min", "max"] = "max",
+        metric_mode: Literal["min", "max"] = None,
         drop_reference: Literal["overall", "parent"] = "overall",
         remove_outliers: bool = False,
         feature_types: Dict[
@@ -158,6 +158,17 @@ class SliceGuard:
         if len(mfs) > 0:
             overall_metric = mfs[0].overall.values[0]
             print(f"The overall metric value is {overall_metric}")
+
+        if y is None and y_pred is None and metric_mode is None:
+            metric_mode == "min"
+            print(
+                f"For outlier detection mode {metric_mode} will be set to min if not specified otherwise."
+            )
+        elif metric_mode is None:
+            metric_mode == "max"
+            print(
+                f"You didn't specify metric_mode parameter. Using {metric_mode} as default."
+            )
 
         group_dfs = detect_issues(
             mfs,
@@ -324,6 +335,9 @@ class SliceGuard:
         # Lateron there could be also a case where y is given but no y_pred is given. Then just train a task specific surrogate model.
         # However, besides regression and classification cases this could be much work. Consider using FLAML or other automl tooling here.
         if y is None and y_pred is None:
+            print(
+                "You didn't supply ground-truth labels and predictions. Will fit outlier detection model to find anomal slices instead."
+            )
             ol_scores = fit_outlier_detection_model(encoded_data)
             ol_model_id = str(uuid4())
 

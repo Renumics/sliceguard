@@ -54,7 +54,7 @@ class SliceGuard:
         Function to generate an interactive report that allows limited interactive exploration and
         serves as starting point for detailed analysis in spotlight.
         """
-        df = data  # assign to shorter name
+        df = data.copy()  # assign to shorter name
 
         print("Please wait. sliceguard is preparing your data.")
         (
@@ -128,7 +128,9 @@ class SliceGuard:
         :param hf_num_proc: Multiprocessing used in audio/image preprocessing.
         :param hf_batch_size: Batch size used in computing embeddings.
         """
+        self._df = data # safe that here to not modify original dataframe accidentally
         df = data.copy()  # assign to shorter name
+    
 
         (
             feature_types,
@@ -222,7 +224,6 @@ class SliceGuard:
         self._clustering_df = clustering_df
         self._clustering_cols = clustering_cols
         self._metric_mode = metric_mode
-        self._df = df
         self.embeddings = raw_embeddings
 
         return issues

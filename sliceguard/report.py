@@ -19,23 +19,25 @@ def prepare_report(
     previous_clustering_col = None
     for mf, clustering_col in zip(mfs, clustering_cols):
         # Calculate cluster support
-        
+
         if drop_reference == "overall":
             drop_reference_value = mf.overall.values[0]
         elif drop_reference == "parent":
             if previous_clustering_col is not None:
                 drop_reference_value = []
                 for c in mf.by_group.index:
-                    parent_metric = clustering_df[clustering_df[clustering_col] == c][f"{previous_clustering_col}_metric"].iloc[0]
+                    parent_metric = clustering_df[clustering_df[clustering_col] == c][
+                        f"{previous_clustering_col}_metric"
+                    ].iloc[0]
                     drop_reference_value.append(parent_metric)
                 drop_reference_value = np.array(drop_reference_value)
             else:
                 drop_reference_value = mf.overall.values[0]
-      
-        else:
-            raise RuntimeError("Invalid value for parameter drop_reference. Has to be either overall or parent.")
-        
 
+        else:
+            raise RuntimeError(
+                "Invalid value for parameter drop_reference. Has to be either overall or parent."
+            )
 
         drops = (
             drop_reference_value - mf.by_group.values[:, 0]

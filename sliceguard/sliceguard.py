@@ -82,6 +82,17 @@ class SliceGuard:
             hf_batch_size=hf_batch_size,
         )
 
+        if y is None and y_pred is None and metric_mode is None:
+            metric_mode == "min"
+            print(
+                f"For outlier detection mode metric_mode will be set to {metric_mode} if not specified otherwise."
+            )
+        elif metric_mode is None:
+            metric_mode == "max"
+            print(
+                f"You didn't specify metric_mode parameter. Using {metric_mode} as default."
+            )
+
         prepare_report(mfs, clustering_df, clustering_cols, metric_mode, drop_reference)
 
     # TODO: Introduce control features to account for expected variations
@@ -128,9 +139,8 @@ class SliceGuard:
         :param hf_num_proc: Multiprocessing used in audio/image preprocessing.
         :param hf_batch_size: Batch size used in computing embeddings.
         """
-        self._df = data # safe that here to not modify original dataframe accidentally
+        self._df = data  # safe that here to not modify original dataframe accidentally
         df = data.copy()  # assign to shorter name
-    
 
         (
             feature_types,
@@ -164,7 +174,7 @@ class SliceGuard:
         if y is None and y_pred is None and metric_mode is None:
             metric_mode == "min"
             print(
-                f"For outlier detection mode {metric_mode} will be set to min if not specified otherwise."
+                f"For outlier detection mode metric_mode will be set to {metric_mode} if not specified otherwise."
             )
         elif metric_mode is None:
             metric_mode == "max"
@@ -267,6 +277,9 @@ class SliceGuard:
         if self._metric_mode == "min":
             data_issue_order = data_issue_order[::-1]
 
+        if hasattr(self, "_generated_y_pred"):
+            df["sg_y_pred"] = self._generated_y_pred
+
         spotlight.show(
             df,
             dtype={**spotlight_dtype, **embedding_dtypes},
@@ -352,6 +365,8 @@ class SliceGuard:
                 return np.mean(y_pred)
 
             metric = return_y_pred_mean
+
+            self._generated_y_pred = ol_scores
 
         # Perform detection of problematic clusters based on the given features
         # 1. A hierarchical clustering is performed and metrics are calculated for all hierarchies

@@ -34,10 +34,11 @@ class SliceGuard:
         self,
         data: pd.DataFrame,
         features: List[str],
-        y: str,
-        y_pred: str,
-        metric: Callable,
+        y: str = None,
+        y_pred: str = None,
+        metric: Callable = None,
         metric_mode: Literal["min", "max"] = "max",
+        drop_reference: Literal["overall", "parent"] = "overall",
         remove_outliers: bool = False,
         feature_types: Dict[
             str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
@@ -81,7 +82,7 @@ class SliceGuard:
             hf_batch_size=hf_batch_size,
         )
 
-        prepare_report(mfs, clustering_df, clustering_cols, metric_mode)
+        prepare_report(mfs, clustering_df, clustering_cols, metric_mode, drop_reference)
 
     # TODO: Introduce control features to account for expected variations
     def find_issues(
@@ -94,6 +95,7 @@ class SliceGuard:
         min_support: int = None,
         min_drop: float = None,
         metric_mode: Literal["min", "max"] = "max",
+        drop_reference: Literal["overall", "parent"] = "overall",
         remove_outliers: bool = False,
         feature_types: Dict[
             str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
@@ -116,6 +118,7 @@ class SliceGuard:
         :min_support: Minimum support for clusters that are listed as issues. If you are more looking towards outliers choose small values, if you target biases choose higher values.
         :min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
         :param metric_mode: What do you optimize your metric for? max is the right choice for accuracy while e.g. min is good for regression error.
+        :param drop_reference: Determines what is the reference value for the drop. Overall is the metric on the whole dataset, parent is the parent cluster.
         :param remove_outliers: Account for outliers that disturb cluster detection.
         :param feature_types: Specify how your feature should be treated in encoding and normalizing.
         :param feature_orders: If your feature is ordinal, specify the order of that should be used for encoding. This is required for EVERY ordinal feature.
@@ -163,6 +166,7 @@ class SliceGuard:
             min_drop,
             min_support,
             metric_mode,
+            drop_reference,
             remove_outliers,
         )
 
@@ -323,12 +327,11 @@ class SliceGuard:
             ol_scores = fit_outlier_detection_model(encoded_data)
             ol_model_id = str(uuid4())
 
-            y= f"{ol_model_id}_y"
+            y = f"{ol_model_id}_y"
             df[y] = ol_scores
 
             y_pred = f"{ol_model_id}_y_pred"
             df[y_pred] = ol_scores
-            
 
             def return_y_pred_mean(y, y_pred):
                 return np.mean(y_pred)

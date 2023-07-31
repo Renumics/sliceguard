@@ -72,7 +72,7 @@ def generate_image_embeddings(
 
     extract_fn = _extract_embeddings_images(model, feature_extractor, "image")
 
-    if hf_num_proc > 1:
+    if hf_num_proc is not None and hf_num_proc > 1:
         set_start_method("spawn", force=True)
 
     updated_dataset = dataset.map(
@@ -150,7 +150,7 @@ def generate_audio_embeddings(
 
     extract_fn = _extract_embeddings_audios(model, feature_extractor, "audio")
 
-    if hf_num_proc > 1:
+    if hf_num_proc is not None and hf_num_proc > 1:
         set_start_method("spawn", force=True)
 
     updated_dataset = dataset.map(

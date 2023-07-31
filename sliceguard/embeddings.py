@@ -39,7 +39,7 @@ def _extract_embeddings_images(model, feature_extractor, col_name="image"):
         ]  # not sure if this is smart. probably some feature extractors take multiple modalities.
         inputs = feature_extractor(images=images, return_tensors="pt").to(device)
         with torch.no_grad():
-            embeddings = model(**inputs).last_hidden_state[:, 0].detach().cpu()
+            embeddings = model(**inputs).last_hidden_state[:, 0].detach().cpu().numpy()
 
         return {"embedding": embeddings}
 
@@ -70,7 +70,7 @@ def generate_image_embeddings(
     dataset = datasets.Dataset.from_pandas(df).cast_column("image", datasets.Image())
 
     extract_fn = _extract_embeddings_images(
-        model.to(device), feature_extractor, "image"
+        model, feature_extractor, "image"
     )
     updated_dataset = dataset.map(
         extract_fn, batched=True, batch_size=hf_batch_size, num_proc=hf_num_proc
@@ -107,7 +107,7 @@ def _extract_embeddings_audios(model, feature_extractor, col_name="audio"):
             return_tensors="pt",
         ).to(device)
         with torch.no_grad():
-            embeddings = model(**inputs).last_hidden_state[:, 0].detach().cpu()
+            embeddings = model(**inputs).last_hidden_state[:, 0].detach().cpu().numpy()
 
         return {"embedding": embeddings}
 
@@ -140,7 +140,7 @@ def generate_audio_embeddings(
     dataset = datasets.Dataset.from_pandas(df).cast_column("audio", datasets.Audio(sampling_rate=feature_extractor.sampling_rate))
 
     extract_fn = _extract_embeddings_audios(
-        model.to(device), feature_extractor, "audio"
+        model, feature_extractor, "audio"
     )
     updated_dataset = dataset.map(
         extract_fn, batched=True, batch_size=hf_batch_size, num_proc=hf_num_proc

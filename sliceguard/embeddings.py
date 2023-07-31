@@ -69,11 +69,13 @@ def generate_image_embeddings(
     df = pd.DataFrame(data={"image": image_paths})
     dataset = datasets.Dataset.from_pandas(df).cast_column("image", datasets.Image())
 
-    extract_fn = _extract_embeddings_images(
-        model, feature_extractor, "image"
-    )
+    extract_fn = _extract_embeddings_images(model, feature_extractor, "image")
     updated_dataset = dataset.map(
-        extract_fn, batched=True, batch_size=hf_batch_size, num_proc=hf_num_proc
+        extract_fn,
+        batched=True,
+        batch_size=hf_batch_size,
+        num_proc=hf_num_proc,
+        remove_columns="image",
     )  # batches has to be true in general, the batch size could be varied, also multiprocessing could be applied
 
     df_updated = updated_dataset.to_pandas()
@@ -137,13 +139,17 @@ def generate_audio_embeddings(
 
     df = pd.DataFrame(data={"audio": audio_paths})
 
-    dataset = datasets.Dataset.from_pandas(df).cast_column("audio", datasets.Audio(sampling_rate=feature_extractor.sampling_rate))
-
-    extract_fn = _extract_embeddings_audios(
-        model, feature_extractor, "audio"
+    dataset = datasets.Dataset.from_pandas(df).cast_column(
+        "audio", datasets.Audio(sampling_rate=feature_extractor.sampling_rate)
     )
+
+    extract_fn = _extract_embeddings_audios(model, feature_extractor, "audio")
     updated_dataset = dataset.map(
-        extract_fn, batched=True, batch_size=hf_batch_size, num_proc=hf_num_proc
+        extract_fn,
+        batched=True,
+        batch_size=hf_batch_size,
+        num_proc=hf_num_proc,
+        remove_columns="audio",
     )  # batches has to be true in general, the batch size could be varied
 
     df_updated = updated_dataset.to_pandas()

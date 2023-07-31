@@ -1,4 +1,5 @@
 # Embedding support for text, images, audio
+from multiprocess import set_start_method
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from transformers import AutoFeatureExtractor, AutoModel
@@ -70,6 +71,9 @@ def generate_image_embeddings(
     dataset = datasets.Dataset.from_pandas(df).cast_column("image", datasets.Image())
 
     extract_fn = _extract_embeddings_images(model, feature_extractor, "image")
+
+    set_start_method("spawn", force=True)
+
     updated_dataset = dataset.map(
         extract_fn,
         batched=True,
@@ -144,6 +148,9 @@ def generate_audio_embeddings(
     )
 
     extract_fn = _extract_embeddings_audios(model, feature_extractor, "audio")
+
+    set_start_method("spawn", force=True)
+
     updated_dataset = dataset.map(
         extract_fn,
         batched=True,

@@ -6,6 +6,7 @@ warnings.simplefilter("ignore", category=NumbaDeprecationWarning)
 warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 
 # Real imports
+from uuid import uuid4
 from typing import List, Literal, Dict, Callable
 
 import pandas as pd
@@ -20,6 +21,7 @@ from renumics.spotlight import layout
 from .utils import infer_feature_types, encode_normalize_features
 from .detection import generate_metric_frames, detect_issues
 from .explanation import explain_clusters
+from .modeling import fit_outlier_detection_model
 from .report import prepare_report
 
 
@@ -32,10 +34,11 @@ class SliceGuard:
         self,
         data: pd.DataFrame,
         features: List[str],
-        y: str,
-        y_pred: str,
-        metric: Callable,
-        metric_mode: Literal["min", "max"] = "max",
+        y: str = None,
+        y_pred: str = None,
+        metric: Callable = None,
+        metric_mode: Literal["min", "max"] = None,
+        drop_reference: Literal["overall", "parent"] = "overall",
         remove_outliers: bool = False,
         feature_types: Dict[
             str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
@@ -51,7 +54,7 @@ class SliceGuard:
         Function to generate an interactive report that allows limited interactive exploration and
         serves as starting point for detailed analysis in spotlight.
         """
-        df = data  # assign to shorter name
+        df = data.copy()  # assign to shorter name
 
         print("Please wait. sliceguard is preparing your data.")
         (
@@ -79,19 +82,31 @@ class SliceGuard:
             hf_batch_size=hf_batch_size,
         )
 
-        prepare_report(mfs, clustering_df, clustering_cols, metric_mode)
+        if y is None and y_pred is None and metric_mode is None:
+            metric_mode == "min"
+            print(
+                f"For outlier detection mode metric_mode will be set to {metric_mode} if not specified otherwise."
+            )
+        elif metric_mode is None:
+            metric_mode == "max"
+            print(
+                f"You didn't specify metric_mode parameter. Using {metric_mode} as default."
+            )
+
+        prepare_report(mfs, clustering_df, clustering_cols, metric_mode, drop_reference)
 
     # TODO: Introduce control features to account for expected variations
     def find_issues(
         self,
         data: pd.DataFrame,
         features: List[str],
-        y: str,
-        y_pred: str,
-        metric: Callable,
+        y: str = None,
+        y_pred: str = None,
+        metric: Callable = None,
         min_support: int = None,
         min_drop: float = None,
-        metric_mode: Literal["min", "max"] = "max",
+        metric_mode: Literal["min", "max"] = None,
+        drop_reference: Literal["overall", "parent"] = "overall",
         remove_outliers: bool = False,
         feature_types: Dict[
             str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
@@ -114,6 +129,7 @@ class SliceGuard:
         :min_support: Minimum support for clusters that are listed as issues. If you are more looking towards outliers choose small values, if you target biases choose higher values.
         :min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
         :param metric_mode: What do you optimize your metric for? max is the right choice for accuracy while e.g. min is good for regression error.
+        :param drop_reference: Determines what is the reference value for the drop. Overall is the metric on the whole dataset, parent is the parent cluster.
         :param remove_outliers: Account for outliers that disturb cluster detection.
         :param feature_types: Specify how your feature should be treated in encoding and normalizing.
         :param feature_orders: If your feature is ordinal, specify the order of that should be used for encoding. This is required for EVERY ordinal feature.
@@ -123,7 +139,8 @@ class SliceGuard:
         :param hf_num_proc: Multiprocessing used in audio/image preprocessing.
         :param hf_batch_size: Batch size used in computing embeddings.
         """
-        df = data  # assign to shorter name
+        self._df = data  # safe that here to not modify original dataframe accidentally
+        df = data.copy()  # assign to shorter name
 
         (
             feature_types,
@@ -154,6 +171,17 @@ class SliceGuard:
             overall_metric = mfs[0].overall.values[0]
             print(f"The overall metric value is {overall_metric}")
 
+        if y is None and y_pred is None and metric_mode is None:
+            metric_mode == "min"
+            print(
+                f"For outlier detection mode metric_mode will be set to {metric_mode} if not specified otherwise."
+            )
+        elif metric_mode is None:
+            metric_mode == "max"
+            print(
+                f"You didn't specify metric_mode parameter. Using {metric_mode} as default."
+            )
+
         group_dfs = detect_issues(
             mfs,
             clustering_df,
@@ -161,6 +189,7 @@ class SliceGuard:
             min_drop,
             min_support,
             metric_mode,
+            drop_reference,
             remove_outliers,
         )
 
@@ -205,7 +234,6 @@ class SliceGuard:
         self._clustering_df = clustering_df
         self._clustering_cols = clustering_cols
         self._metric_mode = metric_mode
-        self._df = df
         self.embeddings = raw_embeddings
 
         return issues
@@ -249,6 +277,9 @@ class SliceGuard:
         if self._metric_mode == "min":
             data_issue_order = data_issue_order[::-1]
 
+        if hasattr(self, "_generated_y_pred"):
+            df["sg_y_pred"] = self._generated_y_pred
+
         spotlight.show(
             df,
             dtype={**spotlight_dtype, **embedding_dtypes},
@@ -285,17 +316,11 @@ class SliceGuard:
         hf_batch_size=1,
     ):
         assert (
-            (
-                all(
-                    [
-                        (f in data.columns or f in precomputed_embeddings)
-                        for f in features
-                    ]
-                )
-            )
-            and (y in data.columns)
-            and (y_pred in data.columns)
-        )  # check presence of all columns
+            all([(f in data.columns or f in precomputed_embeddings) for f in features])
+        ) and (
+            ((y_pred is not None) and (y is not None))  # Completly supervised case
+            or ((y_pred is None) and (y is None))
+        )  # Completely unsupervised case (outlier based)  # check presence of all columns
 
         df = data  # just rename the variable for shorter naming
 
@@ -303,8 +328,6 @@ class SliceGuard:
         feature_types = infer_feature_types(
             features, feature_types, precomputed_embeddings, df
         )
-
-         
 
         # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant
         # See also connection with full report functionality. It makes sense to habe a feature and a samples based view!
@@ -322,6 +345,29 @@ class SliceGuard:
             df,
         )
 
+        # If y and y_pred are non use an outlier detection algorithm to detect potential issues in the data.
+        # Lateron there could be also a case where y is given but no y_pred is given. Then just train a task specific surrogate model.
+        # However, besides regression and classification cases this could be much work. Consider using FLAML or other automl tooling here.
+        if y is None and y_pred is None:
+            print(
+                "You didn't supply ground-truth labels and predictions. Will fit outlier detection model to find anomal slices instead."
+            )
+            ol_scores = fit_outlier_detection_model(encoded_data)
+            ol_model_id = str(uuid4())
+
+            y = f"{ol_model_id}_y"
+            df[y] = ol_scores
+
+            y_pred = f"{ol_model_id}_y_pred"
+            df[y_pred] = ol_scores
+
+            def return_y_pred_mean(y, y_pred):
+                return np.mean(y_pred)
+
+            metric = return_y_pred_mean
+
+            self._generated_y_pred = ol_scores
+
         # Perform detection of problematic clusters based on the given features
         # 1. A hierarchical clustering is performed and metrics are calculated for all hierarchies
         # 2. hierarchy level that is most indicative of a real problem is then determined
@@ -332,7 +378,9 @@ class SliceGuard:
             clustering_df,
             clustering_cols,
             clustering_metric_cols,
-        ) = generate_metric_frames(encoded_data, df, y, y_pred, metric, feature_types, remove_outliers)
+        ) = generate_metric_frames(
+            encoded_data, df, y, y_pred, metric, feature_types, remove_outliers
+        )
 
         return (
             feature_types,

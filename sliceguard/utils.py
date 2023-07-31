@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, RobustScaler
 import umap
 
-from .embedding_utils import (
+from .embeddings import (
     generate_image_embeddings,
     generate_audio_embeddings,
     generate_text_embeddings,
@@ -150,8 +150,8 @@ def encode_normalize_features(
                 raw_embeddings[
                     col
                 ] = embeddings  # also save them here as they are used in report
-            elif first_entry.lower().endswith(
-                ".wav"
+            elif first_entry.lower().endswith(".wav") or first_entry.lower().endswith(
+                ".mp3"
             ):  # TODO: Improve data type inference for raw data
                 embeddings = generate_audio_embeddings(
                     df[col].values, **hf_model_params
@@ -174,7 +174,7 @@ def encode_normalize_features(
             reduced_embeddings = umap.UMAP(
                 n_neighbors=min(embeddings.shape[0] - 1, 15),
                 n_components=min(
-                    embeddings.shape[0]-2, 8
+                    embeddings.shape[0] - 2, 8
                 ),  # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normlization.
                 # min_dist=0.0,
                 random_state=42,

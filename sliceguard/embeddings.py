@@ -1,4 +1,5 @@
 # Embedding support for text, images, audio
+from multiprocess import set_start_method
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from transformers import AutoFeatureExtractor, AutoModel
@@ -39,7 +40,7 @@ def _extract_embeddings_images(model, feature_extractor, col_name="image"):
         ]  # not sure if this is smart. probably some feature extractors take multiple modalities.
         inputs = feature_extractor(images=images, return_tensors="pt").to(device)
         with torch.no_grad():
-            embeddings = model(**inputs).last_hidden_state[:, 0].detach().cpu()
+            embeddings = model(**inputs).last_hidden_state[:, 0].detach().cpu().numpy()
 
         return {"embedding": embeddings}
 
@@ -69,11 +70,17 @@ def generate_image_embeddings(
     df = pd.DataFrame(data={"image": image_paths})
     dataset = datasets.Dataset.from_pandas(df).cast_column("image", datasets.Image())
 
-    extract_fn = _extract_embeddings_images(
-        model.to(device), feature_extractor, "image"
-    )
+    extract_fn = _extract_embeddings_images(model, feature_extractor, "image")
+
+    if hf_num_proc is not None and hf_num_proc > 1:
+        set_start_method("spawn", force=True)
+
     updated_dataset = dataset.map(
-        extract_fn, batched=True, batch_size=hf_batch_size, num_proc=hf_num_proc
+        extract_fn,
+        batched=True,
+        batch_size=hf_batch_size,
+        num_proc=hf_num_proc,
+        remove_columns="image",
     )  # batches has to be true in general, the batch size could be varied, also multiprocessing could be applied
 
     df_updated = updated_dataset.to_pandas()
@@ -107,7 +114,7 @@ def _extract_embeddings_audios(model, feature_extractor, col_name="audio"):
             return_tensors="pt",
         ).to(device)
         with torch.no_grad():
-            embeddings = model(**inputs).last_hidden_state[:, 0].detach().cpu()
+            embeddings = model(**inputs).last_hidden_state[:, 0].detach().cpu().numpy()
 
         return {"embedding": embeddings}
 
@@ -137,13 +144,21 @@ def generate_audio_embeddings(
 
     df = pd.DataFrame(data={"audio": audio_paths})
 
-    dataset = datasets.Dataset.from_pandas(df).cast_column("audio", datasets.Audio())
-
-    extract_fn = _extract_embeddings_audios(
-        model.to(device), feature_extractor, "audio"
+    dataset = datasets.Dataset.from_pandas(df).cast_column(
+        "audio", datasets.Audio(sampling_rate=feature_extractor.sampling_rate)
     )
+
+    extract_fn = _extract_embeddings_audios(model, feature_extractor, "audio")
+
+    if hf_num_proc is not None and hf_num_proc > 1:
+        set_start_method("spawn", force=True)
+
     updated_dataset = dataset.map(
-        extract_fn, batched=True, batch_size=hf_batch_size, num_proc=hf_num_proc
+        extract_fn,
+        batched=True,
+        batch_size=hf_batch_size,
+        num_proc=hf_num_proc,
+        remove_columns="audio",
     )  # batches has to be true in general, the batch size could be varied
 
     df_updated = updated_dataset.to_pandas()

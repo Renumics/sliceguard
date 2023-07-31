@@ -157,6 +157,7 @@ def detect_issues(
     min_drop: float,
     min_support: int,
     metric_mode: Literal["min", "max"],
+    drop_reference: Literal["overall", "parent"],
     remove_outliers: bool,
 ):
     """
@@ -183,12 +184,33 @@ def detect_issues(
     )
     print(f"Using {min_drop} as minimum drop for determining problematic clusters.")
 
+    previous_clustering_col = None
+
     for mf, clustering_col in zip(mfs, clustering_cols):
+        if drop_reference == "overall":
+            drop_reference_value = mf.overall.values[0]
+        elif drop_reference == "parent":
+            if previous_clustering_col is not None:
+                drop_reference_value = []
+                for c in mf.by_group.index:
+                    parent_metric = clustering_df[clustering_df[clustering_col] == c][
+                        f"{previous_clustering_col}_metric"
+                    ].iloc[0]
+                    drop_reference_value.append(parent_metric)
+                drop_reference_value = np.array(drop_reference_value)
+            else:
+                drop_reference_value = mf.overall.values[0]
+
+        else:
+            raise RuntimeError(
+                "Invalid value for parameter drop_reference. Has to be either overall or parent."
+            )
+
         # Calculate cluster support
         drops = (
-            mf.overall.values[0] - mf.by_group.values[:, 0]
+            drop_reference_value - mf.by_group.values[:, 0]
             if metric_mode == "max"
-            else mf.by_group.values[:, 0] - mf.overall.values[0]
+            else mf.by_group.values[:, 0] - drop_reference_value
         )
 
         supports = [
@@ -267,5 +289,7 @@ def detect_issues(
         ] = True
 
         group_dfs.append(group_df)
+
+        previous_clustering_col = clustering_col
 
     return group_dfs

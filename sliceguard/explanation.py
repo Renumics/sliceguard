@@ -93,7 +93,12 @@ def explain_clusters(features, feature_types, issues, df, prereduced_embeddings)
 
         # if f1 > 0.7: # only add explanation if it is succicient to classify cluster?
         importance_strings = []
+        predicates_list=[]
         for f, i in zip(ordered_features[:3], ordered_importances[:3]):
             importance_strings.append(f"{f}, ({i:.2f})")
+            val = df[f][issue_indices_pandas]
+            predicates_list.append([f, val.min(), val.max()])
         issue["explanation"] = ", ".join(importance_strings)
+
+        issue["predicates"] = predicates_list
     return issues

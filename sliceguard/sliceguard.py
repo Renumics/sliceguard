@@ -48,7 +48,7 @@ class SliceGuard:
         embedding_models: Dict[str, str] = {},
         hf_auth_token=None,
         hf_num_proc=None,
-        hf_batch_size=1,
+        hf_batch_size=1,        
     ):
         """
         Function to generate an interactive report that allows limited interactive exploration and
@@ -262,13 +262,16 @@ class SliceGuard:
                 0
             ].tolist()  # Note: Has to be row index not pandas index!
             issue_metric = issue["metric"]
-            issue_explanation = f"{issue_metric:.2f} -> " + issue["explanation"]
+            issue_title = f"{issue_metric:.2f} -> " + issue["explanation"]
+            predicate_strings = ['{1:.1f} < {0} < {2:.1f}'.format(x[0], x[1], x[2]) for x in issue["predicates"] ]
+            issue_explanation = "; ".join(predicate_strings)
 
             data_issue = DataIssue(
                 severity="medium",
-                title=issue_explanation,
+                title=issue_title,
                 description=issue_explanation,
                 rows=issue_rows,
+                columns=[x[0] for x in issue["predicates"] ],
             )
             data_issues.append(data_issue)
             data_issue_severity.append(issue_metric)
@@ -280,10 +283,12 @@ class SliceGuard:
         if hasattr(self, "_generated_y_pred"):
             df["sg_y_pred"] = self._generated_y_pred
 
+        issue_list = np.array(data_issues)[data_issue_order].tolist()
+
         spotlight.show(
             df,
             dtype={**spotlight_dtype, **embedding_dtypes},
-            issues=np.array(data_issues)[data_issue_order].tolist(),
+            issues=issue_list,
             layout=layout.layout(
                 [
                     [layout.table()],
@@ -293,9 +298,8 @@ class SliceGuard:
                 [[layout.widgets.Inspector()], [layout.widgets.Issues()]],
             ),
         )
-        return (
-            df  # Return the create report dataframe in case caller wants to process it
-        )
+        return df, issue_list  # Return the create report dataframe in case caller wants to process it
+        
 
     def _prepare_data(
         self,

@@ -83,12 +83,12 @@ class SliceGuard:
         )
 
         if y is None and y_pred is None and metric_mode is None:
-            metric_mode == "min"
+            metric_mode = "min"
             print(
                 f"For outlier detection mode metric_mode will be set to {metric_mode} if not specified otherwise."
             )
         elif metric_mode is None:
-            metric_mode == "max"
+            metric_mode = "max"
             print(
                 f"You didn't specify metric_mode parameter. Using {metric_mode} as default."
             )

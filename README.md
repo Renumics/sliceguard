@@ -68,6 +68,7 @@ sg.report()
 - [ ] Interpretable features for images, audio, text. E.g., dark image, quiet audio, long audio, contains common word x, ...
 - [ ] Generation of a summary report doing predefined checks
 - [ ] Allow for control features in order to account for expected variations when running checks
+- [ ] "Supervised" clustering that incorporates classes, probabilities, metrics, not only features
 - [ ] Different interfaces from min_drop, min_support. Maybe n_slices and sort by criterion?
 - [ ] Soft Dependencies for embedding computation as torch dependencies are large
 - [ ] Extensive documentation and examples for common cases

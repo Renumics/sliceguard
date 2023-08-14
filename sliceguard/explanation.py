@@ -96,9 +96,17 @@ def explain_clusters(features, feature_types, issues, df, prereduced_embeddings)
         predicates_list=[]
         for f, i in zip(ordered_features[:3], ordered_importances[:3]):
             importance_strings.append(f"{f}, ({i:.2f})")
-            val = df[f][issue_indices_pandas]
-            predicates_list.append([f, val.min(), val.max()])
+            feature_type = feature_types[f]
+            if feature_type == "numerical" or feature_type == "nominal" or feature_type == "ordinal":
+                val = df[f][issue_indices_pandas]
+                predicates_list.append({"column": f,
+                                        "minimum": val.min(),
+                                        "maximum": val.max()})
+            else:
+                predicates_list.append({"column": f})
+
         issue["explanation"] = ", ".join(importance_strings)
 
         issue["predicates"] = predicates_list
+
     return issues

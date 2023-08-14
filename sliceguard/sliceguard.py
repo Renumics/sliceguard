@@ -48,7 +48,7 @@ class SliceGuard:
         embedding_models: Dict[str, str] = {},
         hf_auth_token=None,
         hf_num_proc=None,
-        hf_batch_size=1,        
+        hf_batch_size=1,
     ):
         """
         Function to generate an interactive report that allows limited interactive exploration and
@@ -263,7 +263,13 @@ class SliceGuard:
             ].tolist()  # Note: Has to be row index not pandas index!
             issue_metric = issue["metric"]
             issue_title = f"{issue_metric:.2f} -> " + issue["explanation"]
-            predicate_strings = ['{1:.1f} < {0} < {2:.1f}'.format(x[0], x[1], x[2]) for x in issue["predicates"] ]
+            predicate_strings = [
+                "{1:.1f} < {0} < {2:.1f}".format(
+                    x["column"], x["minimum"], x["maximum"]
+                )
+                for x in issue["predicates"]
+                if ("minimum" in x and "maximum" in x)
+            ]
             issue_explanation = "; ".join(predicate_strings)
 
             data_issue = DataIssue(
@@ -271,7 +277,7 @@ class SliceGuard:
                 title=issue_title,
                 description=issue_explanation,
                 rows=issue_rows,
-                columns=[x[0] for x in issue["predicates"] ],
+                columns=[x["column"] for x in issue["predicates"]],
             )
             data_issues.append(data_issue)
             data_issue_severity.append(issue_metric)
@@ -298,8 +304,10 @@ class SliceGuard:
                 [[layout.widgets.Inspector()], [layout.widgets.Issues()]],
             ),
         )
-        return df, issue_list  # Return the create report dataframe in case caller wants to process it
-        
+        return (
+            df,
+            issue_list,
+        )  # Return the create report dataframe in case caller wants to process it
 
     def _prepare_data(
         self,

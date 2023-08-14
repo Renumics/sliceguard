@@ -262,13 +262,22 @@ class SliceGuard:
                 0
             ].tolist()  # Note: Has to be row index not pandas index!
             issue_metric = issue["metric"]
-            issue_explanation = f"{issue_metric:.2f} -> " + issue["explanation"]
+            issue_title = f"{issue_metric:.2f} -> " + issue["explanation"]
+            predicate_strings = [
+                "{1:.1f} < {0} < {2:.1f}".format(
+                    x["column"], x["minimum"], x["maximum"]
+                )
+                for x in issue["predicates"]
+                if ("minimum" in x and "maximum" in x)
+            ]
+            issue_explanation = "; ".join(predicate_strings)
 
             data_issue = DataIssue(
                 severity="medium",
-                title=issue_explanation,
+                title=issue_title,
                 description=issue_explanation,
                 rows=issue_rows,
+                columns=[x["column"] for x in issue["predicates"]],
             )
             data_issues.append(data_issue)
             data_issue_severity.append(issue_metric)
@@ -280,10 +289,12 @@ class SliceGuard:
         if hasattr(self, "_generated_y_pred"):
             df["sg_y_pred"] = self._generated_y_pred
 
+        issue_list = np.array(data_issues)[data_issue_order].tolist()
+
         spotlight.show(
             df,
             dtype={**spotlight_dtype, **embedding_dtypes},
-            issues=np.array(data_issues)[data_issue_order].tolist(),
+            issues=issue_list,
             layout=layout.layout(
                 [
                     [layout.table()],
@@ -294,8 +305,9 @@ class SliceGuard:
             ),
         )
         return (
-            df  # Return the create report dataframe in case caller wants to process it
-        )
+            df,
+            issue_list,
+        )  # Return the create report dataframe in case caller wants to process it
 
     def _prepare_data(
         self,

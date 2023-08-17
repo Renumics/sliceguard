@@ -65,12 +65,13 @@ sg.report()
 - [x] Support application on datasets without labels (outlier based)
 - [x] Adaptive drop reference for datasets that contain a wide variety of data
 - [x] Large data support for detection and reporting, e.g., 500k audio samples with transcriptions
+- [ ] Different interfaces from min_drop, min_support. Maybe n_slices and sort by criterion?
+- [ ] Add no_browser flag to report method to only get enriched dataframe?
 - [ ] Support application without model (by training simple baseline model)
 - [ ] Interpretable features for images, audio, text. E.g., dark image, quiet audio, long audio, contains common word x, ...
 - [ ] Generation of a summary report doing predefined checks
 - [ ] Allow for control features in order to account for expected variations when running checks
 - [ ] "Supervised" clustering that incorporates classes, probabilities, metrics, not only features
-- [ ] Different interfaces from min_drop, min_support. Maybe n_slices and sort by criterion?
 - [ ] Soft Dependencies for embedding computation as torch dependencies are large
 - [ ] Extensive documentation and examples for common cases
 - [ ] Data connectors for faster application on common data formats

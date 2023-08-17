@@ -8,6 +8,7 @@ warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 # Real imports
 from uuid import uuid4
 from typing import List, Literal, Dict, Callable
+from flaml import AutoML
 
 import pandas as pd
 import numpy as np
@@ -117,6 +118,9 @@ class SliceGuard:
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
+        split_key=None,
+        train_split=None,
+        task='classification',
     ):
         """
         Find slices that are classified badly by your model.
@@ -165,6 +169,9 @@ class SliceGuard:
             hf_auth_token=hf_auth_token,
             hf_num_proc=hf_num_proc,
             hf_batch_size=hf_batch_size,
+            split_key=split_key,
+            train_split=train_split,
+            task=task,
         )
 
         if len(mfs) > 0:
@@ -176,6 +183,10 @@ class SliceGuard:
             print(
                 f"For outlier detection mode metric_mode will be set to {metric_mode} if not specified otherwise."
             )
+
+        elif y_pred is None:
+            print('TODO find issue case for y given and y_pred not.')
+
         elif metric_mode is None:
             metric_mode == "max"
             print(
@@ -314,12 +325,15 @@ class SliceGuard:
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
+        split_key=None,
+        train_split=None,
+        task='classification',
     ):
         assert (
             all([(f in data.columns or f in precomputed_embeddings) for f in features])
         ) and (
             ((y_pred is not None) and (y is not None))  # Completly supervised case
-            or ((y_pred is None) and (y is None))
+            or ((y_pred is None))
         )  # Completely unsupervised case (outlier based)  # check presence of all columns
 
         df = data  # just rename the variable for shorter naming
@@ -367,6 +381,41 @@ class SliceGuard:
             metric = return_y_pred_mean
 
             self._generated_y_pred = ol_scores
+
+        elif y_pred is None:
+
+            y_pred = 'automl_prediction'
+
+            if split_key is not None:
+
+                if train_split is not None:
+                    # TODO infer model from data
+                    split_mask = df[split_key] == train_split
+
+                    subset = df[split_mask]
+
+                    automl = AutoML()
+                    automl.fit(encoded_data[split_mask], subset[y], task=task)
+                    df[y_pred] = automl.predict(encoded_data[split_mask])
+                else:
+                    if len(df[split_key].unique()) < 2:
+                        print("Split column must contain at least 2 separate classes!")
+
+                    automl_setting = {
+                        "eval_method": "cv",
+                        "groups": df[split_key].values,
+                        "split_type": "group",
+                        "task": task,
+                    }
+
+                    automl = AutoML(**automl_setting)
+                    automl.fit(encoded_data, df[y])
+                    df[y_pred] = automl.predict(encoded_data)
+
+            else:
+                automl = AutoML()
+                automl.fit(encoded_data, df[y], task=task)
+                df[y_pred] = automl.predict(encoded_data)
 
         # Perform detection of problematic clusters based on the given features
         # 1. A hierarchical clustering is performed and metrics are calculated for all hierarchies

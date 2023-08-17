@@ -7,7 +7,7 @@ warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 
 # Real imports
 from uuid import uuid4
-from typing import List, Literal, Dict, Callable
+from typing import List, Literal, Dict, Callable, Optional
 
 import pandas as pd
 import numpy as np
@@ -83,12 +83,12 @@ class SliceGuard:
         )
 
         if y is None and y_pred is None and metric_mode is None:
-            metric_mode == "min"
+            metric_mode = "min"
             print(
                 f"For outlier detection mode metric_mode will be set to {metric_mode} if not specified otherwise."
             )
         elif metric_mode is None:
-            metric_mode == "max"
+            metric_mode = "max"
             print(
                 f"You didn't specify metric_mode parameter. Using {metric_mode} as default."
             )
@@ -172,12 +172,12 @@ class SliceGuard:
             print(f"The overall metric value is {overall_metric}")
 
         if y is None and y_pred is None and metric_mode is None:
-            metric_mode == "min"
+            metric_mode = "min"
             print(
                 f"For outlier detection mode metric_mode will be set to {metric_mode} if not specified otherwise."
             )
         elif metric_mode is None:
-            metric_mode == "max"
+            metric_mode = "max"
             print(
                 f"You didn't specify metric_mode parameter. Using {metric_mode} as default."
             )
@@ -238,29 +238,87 @@ class SliceGuard:
 
         return issues
 
-    def report(self, spotlight_dtype: Dict[str, spotlight.dtypes.base.DType] = {}):
+    def report(
+        self,
+        spotlight_dtype: Dict[str, spotlight.dtypes.base.DType] = {},
+        issue_portion: Optional[int | float] = None,
+        non_issue_portion: Optional[int | float] = None,
+    ):
         """
         Create an interactive report on the found issues in spotlight.
         :param spotlight_dtype: Define a datatype mapping for the interactive spotlight report. Will be passed to dtypes parameter of spotlight.show.
+        :param issue_portion: The absolute or relative value of samples belonging to an issue that are shown in the report (for downsampling).
+        :param non_issue_portion: The absolute or relative value of samples not belonging to an issue that are shown in the report (for downsampling).
         """
         # Some basic checks
         assert self._issues is not None
 
         df = self._df.copy()
 
+        # Determine indices for downsampling if supplied.
+        issue_indices = []
+        for issue in self._issues:
+            issue_indices.extend(issue["indices"])
+        issue_indices = list(set(issue_indices))
+
+        non_issue_indices = np.setdiff1d(df.index, issue_indices)
+
+        if issue_portion is not None:
+            if isinstance(issue_portion, float):
+                issue_portion = round(min(1.0, issue_portion) * len(issue_indices))
+            elif isinstance(issue_portion, int):
+                pass  # Do nothing
+            else:
+                raise RuntimeError(
+                    "Invalid value supplied to issue_portion. Must be int or float."
+                )
+            selected_issue_indices = np.random.choice(
+                issue_indices, size=issue_portion, replace=False
+            )
+        else:
+            selected_issue_indices = issue_indices
+
+        if non_issue_portion is not None:
+            if isinstance(non_issue_portion, float):
+                non_issue_portion = round(
+                    min(1.0, non_issue_portion) * len(issue_indices)
+                )
+            elif isinstance(non_issue_portion, int):
+                pass  # Do nothing
+            else:
+                raise RuntimeError(
+                    "Invalid value supplied to non_issue_portion. Must be int or float."
+                )
+            selected_non_issue_indices = np.random.choice(
+                issue_indices, size=non_issue_portion, replace=False
+            )
+        else:
+            selected_non_issue_indices = non_issue_indices
+
+        # Downsample the dataframe
+        selected_dataframe_indices = np.concatenate(
+            (selected_issue_indices, selected_non_issue_indices)
+        )
+        selected_dataframe_rows = np.where(df.index.isin(selected_dataframe_indices))[
+            0
+        ].tolist()
+        df = df.iloc[selected_dataframe_rows]
+
         # Insert embeddings if they were computed
         embedding_dtypes = {}
         for embedding_col, embeddings in self.embeddings.items():
             report_col_name = f"sg_emb_{embedding_col}"
-            df[report_col_name] = [e.tolist() for e in embeddings]
+            df[report_col_name] = np.array([e.tolist() for e in embeddings])[
+                selected_dataframe_rows
+            ].tolist()
             embedding_dtypes[report_col_name] = Embedding
 
         data_issue_severity = []
         data_issues = []
         for issue in self._issues:
-            issue_rows = np.where(df.index.isin(issue["indices"]))[
-                0
-            ].tolist()  # Note: Has to be row index not pandas index!
+            # Note: Has to be row index not pandas index! Also note that the expression should be enough to filter out items that are not in the dataframe
+            # because of downsampling. However, take care when changing something.
+            issue_rows = np.where(df.index.isin(issue["indices"]))[0].tolist()
             issue_metric = issue["metric"]
             issue_title = f"{issue_metric:.2f} -> " + issue["explanation"]
             predicate_strings = [
@@ -287,7 +345,7 @@ class SliceGuard:
             data_issue_order = data_issue_order[::-1]
 
         if hasattr(self, "_generated_y_pred"):
-            df["sg_y_pred"] = self._generated_y_pred
+            df["sg_y_pred"] = self._generated_y_pred[selected_dataframe_rows]
 
         issue_list = np.array(data_issues)[data_issue_order].tolist()
 

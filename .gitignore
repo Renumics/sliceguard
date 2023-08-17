@@ -1,5 +1,7 @@
 # Ignore test data
 test_data/
+cifar100-enrichment-sg.parquet
+sliceguard-issues.pkl
 
 # IDE specific ignores
 .vscode/

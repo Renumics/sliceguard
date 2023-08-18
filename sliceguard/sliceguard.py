@@ -13,6 +13,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 
+
 from renumics import spotlight
 from renumics.spotlight.analysis.typing import DataIssue
 from renumics.spotlight import Embedding
@@ -21,7 +22,7 @@ from renumics.spotlight import layout
 from .utils import infer_feature_types, encode_normalize_features
 from .detection import generate_metric_frames, detect_issues
 from .explanation import explain_clusters
-from .modeling import fit_outlier_detection_model
+from .modeling import fit_outlier_detection_model, fit_classification_regression_model
 from .report import prepare_report
 
 
@@ -49,6 +50,11 @@ class SliceGuard:
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
+        automl_task="classification",
+        automl_split_key=None,
+        automl_train_split=None,
+        automl_time_budget=20.0,
+        automl_use_full_embeddings=False,
     ):
         """
         Function to generate an interactive report that allows limited interactive exploration and
@@ -80,6 +86,11 @@ class SliceGuard:
             hf_auth_token=hf_auth_token,
             hf_num_proc=hf_num_proc,
             hf_batch_size=hf_batch_size,
+            automl_split_key=automl_split_key,
+            automl_train_split=automl_train_split,
+            automl_task=automl_task,
+            automl_time_budget=automl_time_budget,
+            automl_use_full_embeddings=automl_use_full_embeddings,
         )
 
         if y is None and y_pred is None and metric_mode is None:
@@ -117,6 +128,11 @@ class SliceGuard:
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
+        automl_task="classification",
+        automl_split_key=None,
+        automl_train_split=None,
+        automl_time_budget=20.0,
+        automl_use_full_embeddings=False,
     ):
         """
         Find slices that are classified badly by your model.
@@ -138,6 +154,8 @@ class SliceGuard:
         :param hf_auth_token: The authentification token used to download embedding models from the huggingface hub.
         :param hf_num_proc: Multiprocessing used in audio/image preprocessing.
         :param hf_batch_size: Batch size used in computing embeddings.
+        :param split_key: Column used for splitting the data.
+        :param train_split: The value used for marking the train split. If supplied, rest of data will be used as validation set. If not supplied using crossvalidation.
         """
         self._df = data  # safe that here to not modify original dataframe accidentally
         df = data.copy()  # assign to shorter name
@@ -165,6 +183,11 @@ class SliceGuard:
             hf_auth_token=hf_auth_token,
             hf_num_proc=hf_num_proc,
             hf_batch_size=hf_batch_size,
+            automl_split_key=automl_split_key,
+            automl_train_split=automl_train_split,
+            automl_task=automl_task,
+            automl_time_budget=automl_time_budget,
+            automl_use_full_embeddings=automl_use_full_embeddings,
         )
 
         if len(mfs) > 0:
@@ -176,11 +199,17 @@ class SliceGuard:
             print(
                 f"For outlier detection mode metric_mode will be set to {metric_mode} if not specified otherwise."
             )
+
+        elif y_pred is None:
+            if metric_mode is None:
+                metric_mode = "max"
         elif metric_mode is None:
             metric_mode = "max"
             print(
                 f"You didn't specify metric_mode parameter. Using {metric_mode} as default."
             )
+
+        assert metric_mode is not None
 
         group_dfs = detect_issues(
             mfs,
@@ -217,6 +246,7 @@ class SliceGuard:
                 issue_metric = clustering_df[clustering_df[clustering_col] == issue][
                     clustering_metric_col
                 ].values[0]
+
                 current_issue["metric"] = issue_metric
 
                 issues.append(current_issue)
@@ -384,12 +414,17 @@ class SliceGuard:
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
+        automl_task="classification",
+        automl_split_key=None,
+        automl_train_split=None,
+        automl_time_budget=None,
+        automl_use_full_embeddings=False,
     ):
         assert (
             all([(f in data.columns or f in precomputed_embeddings) for f in features])
         ) and (
             ((y_pred is not None) and (y is not None))  # Completly supervised case
-            or ((y_pred is None) and (y is None))
+            or ((y_pred is None))
         )  # Completely unsupervised case (outlier based)  # check presence of all columns
 
         df = data  # just rename the variable for shorter naming
@@ -416,13 +451,17 @@ class SliceGuard:
         )
 
         # If y and y_pred are non use an outlier detection algorithm to detect potential issues in the data.
-        # Lateron there could be also a case where y is given but no y_pred is given. Then just train a task specific surrogate model.
-        # However, besides regression and classification cases this could be much work. Consider using FLAML or other automl tooling here.
+        # If y is given but no y_pred is given just train a task specific surrogate model.
+        # Currently only classification and regression are supported.
         if y is None and y_pred is None:
             print(
                 "You didn't supply ground-truth labels and predictions. Will fit outlier detection model to find anomal slices instead."
             )
-            ol_scores = fit_outlier_detection_model(encoded_data)
+            ol_scores = fit_outlier_detection_model(
+                np.concatenate((encoded_data, raw_embeddings), axis=1)
+                if automl_use_full_embeddings
+                else encoded_data,
+            )
             ol_model_id = str(uuid4())
 
             y = f"{ol_model_id}_y"
@@ -437,6 +476,34 @@ class SliceGuard:
             metric = return_y_pred_mean
 
             self._generated_y_pred = ol_scores
+
+        elif y_pred is None:
+            y_pred = "sg_y_pred"
+
+            X_data = [encoded_data]
+            if automl_use_full_embeddings:
+                print(
+                    f"Using {len(list(raw_embeddings.values()))} raw embeddings in fitting. Consider increasing the time budget."
+                )
+                for v in raw_embeddings.values():
+                    X_data.append(v)
+
+            y_preds = fit_classification_regression_model(
+                encoded_data=np.concatenate(X_data, axis=1)
+                if automl_use_full_embeddings
+                else encoded_data,
+                ys=df[y].values,
+                task=automl_task,
+                split=df[automl_split_key].values
+                if automl_split_key is not None
+                else None,
+                train_split=automl_train_split,
+                time_budget=automl_time_budget,
+            )
+
+            df[y_pred] = y_preds
+
+            self._generated_y_pred = df[y_pred].values
 
         # Perform detection of problematic clusters based on the given features
         # 1. A hierarchical clustering is performed and metrics are calculated for all hierarchies

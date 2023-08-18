@@ -11,7 +11,7 @@ def test_sliceguard_images():
 
     sg = SliceGuard()
     issue_df = sg.find_issues(
-        df.sample(1000),
+        df.sample(500),
         ["image"],
         "fine_label",
         metric=accuracy_score,

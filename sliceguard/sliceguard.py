@@ -193,8 +193,7 @@ class SliceGuard:
             )
 
         elif y_pred is None:
-            print("TODO find issue case for y given and y_pred not.")
-
+            pass  # TODO: Consider setting metric mode and metric according to task is not manually supplied?
         elif metric_mode is None:
             metric_mode = "max"
             print(

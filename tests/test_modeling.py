@@ -11,7 +11,7 @@ def test_sliceguard_images():
 
     sg = SliceGuard()
     issue_df = sg.find_issues(
-        df.sample(500),
+        df.sample(10000),
         ["image"],
         "fine_label_str",
         min_drop=0.05,
@@ -21,6 +21,8 @@ def test_sliceguard_images():
         automl_split_key="split",
         automl_train_split="train",
         automl_task="classification",
+        # automl_use_full_embeddings=True,
+        automl_time_budget=40.0,
     )
     sg.report()
 

@@ -54,6 +54,7 @@ class SliceGuard:
         automl_split_key=None,
         automl_train_split=None,
         automl_time_budget=20.0,
+        automl_use_full_embeddings=False,
     ):
         """
         Function to generate an interactive report that allows limited interactive exploration and
@@ -89,6 +90,7 @@ class SliceGuard:
             automl_train_split=automl_train_split,
             automl_task=automl_task,
             automl_time_budget=automl_time_budget,
+            automl_use_full_embeddings=automl_use_full_embeddings,
         )
 
         if y is None and y_pred is None and metric_mode is None:
@@ -130,6 +132,7 @@ class SliceGuard:
         automl_split_key=None,
         automl_train_split=None,
         automl_time_budget=20.0,
+        automl_use_full_embeddings=False,
     ):
         """
         Find slices that are classified badly by your model.
@@ -184,6 +187,7 @@ class SliceGuard:
             automl_train_split=automl_train_split,
             automl_task=automl_task,
             automl_time_budget=automl_time_budget,
+            automl_use_full_embeddings=automl_use_full_embeddings,
         )
 
         if len(mfs) > 0:
@@ -414,6 +418,7 @@ class SliceGuard:
         automl_split_key=None,
         automl_train_split=None,
         automl_time_budget=None,
+        automl_use_full_embeddings=False,
     ):
         assert (
             all([(f in data.columns or f in precomputed_embeddings) for f in features])
@@ -452,7 +457,11 @@ class SliceGuard:
             print(
                 "You didn't supply ground-truth labels and predictions. Will fit outlier detection model to find anomal slices instead."
             )
-            ol_scores = fit_outlier_detection_model(encoded_data)
+            ol_scores = fit_outlier_detection_model(
+                np.concatenate((encoded_data, raw_embeddings), axis=1)
+                if automl_use_full_embeddings
+                else encoded_data,
+            )
             ol_model_id = str(uuid4())
 
             y = f"{ol_model_id}_y"
@@ -471,8 +480,18 @@ class SliceGuard:
         elif y_pred is None:
             y_pred = "sg_y_pred"
 
+            X_data = [encoded_data]
+            if automl_use_full_embeddings:
+                print(
+                    f"Using {len(list(raw_embeddings.values()))} raw embeddings in fitting. Consider increasing the time budget."
+                )
+                for v in raw_embeddings.values():
+                    X_data.append(v)
+
             y_preds = fit_classification_regression_model(
-                encoded_data=encoded_data,
+                encoded_data=np.concatenate(X_data, axis=1)
+                if automl_use_full_embeddings
+                else encoded_data,
                 ys=df[y].values,
                 task=automl_task,
                 split=df[automl_split_key].values

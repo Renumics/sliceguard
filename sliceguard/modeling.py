@@ -18,6 +18,7 @@ def fit_classification_regression_model(
     task: Literal["classification", "regression"],
     split: np.array = None,
     train_split: str = None,
+    time_budget: float = 20.0,
 ):
     if task == "classification":
         label_encoder = LabelEncoder()
@@ -47,7 +48,7 @@ def fit_classification_regression_model(
                 task=task,
                 metric=automl_metric,
                 estimator_list=["xgboost"],
-                time_budget=20.0,
+                time_budget=time_budget,
             )
         else:
             if len(np.unique(split)) < 2:
@@ -62,7 +63,7 @@ def fit_classification_regression_model(
                 "task": task,
                 "metric": automl_metric,
                 "estimator_list": ["xgboost"],
-                "time_budget": 20.0,
+                "time_budget": time_budget,
                 "n_splits": min(len(np.unique(split)), 5),
             }
 
@@ -77,7 +78,7 @@ def fit_classification_regression_model(
             task=task,
             metric=automl_metric,
             estimator_list=["xgboost"],
-            time_budget=20.0,
+            time_budget=time_budget,
         )
 
     y_preds_raw = automl.predict(encoded_data)

@@ -6,25 +6,26 @@ from sliceguard import SliceGuard
 
 
 def test_sliceguard_images():
-    dataset = datasets.load_dataset('renumics/cifar100-enriched', split='all')
+    dataset = datasets.load_dataset("renumics/cifar100-enriched", split="all")
     df = dataset.to_pandas()
 
     sg = SliceGuard()
     issue_df = sg.find_issues(
         df.sample(500),
         ["image"],
-        "fine_label",
-        metric=accuracy_score,
-        split_key="split",
-        train_split="train",
-        task='classification',
+        "fine_label_str",
         min_drop=0.05,
-        min_support=10
+        min_support=10,
+        metric=accuracy_score,
+        metric_mode="max",
+        automl_split_key="split",
+        automl_train_split="train",
+        automl_task="classification",
     )
     sg.report()
 
     # sg.report(spotlight_dtype={"image_path": Image})
 
+
 if __name__ == "__main__":
     test_sliceguard_images()
-

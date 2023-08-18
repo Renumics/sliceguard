@@ -50,9 +50,10 @@ class SliceGuard:
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
-        task="classification",
-        split_key=None,
-        train_split=None,
+        automl_task="classification",
+        automl_split_key=None,
+        automl_train_split=None,
+        automl_time_budget=20.0,
     ):
         """
         Function to generate an interactive report that allows limited interactive exploration and
@@ -84,9 +85,10 @@ class SliceGuard:
             hf_auth_token=hf_auth_token,
             hf_num_proc=hf_num_proc,
             hf_batch_size=hf_batch_size,
-            split_key=split_key,
-            train_split=train_split,
-            task=task,
+            automl_split_key=automl_split_key,
+            automl_train_split=automl_train_split,
+            automl_task=automl_task,
+            automl_time_budget=automl_time_budget,
         )
 
         if y is None and y_pred is None and metric_mode is None:
@@ -124,9 +126,10 @@ class SliceGuard:
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
-        task="classification",
-        split_key=None,
-        train_split=None,
+        automl_task="classification",
+        automl_split_key=None,
+        automl_train_split=None,
+        automl_time_budget=20.0,
     ):
         """
         Find slices that are classified badly by your model.
@@ -177,9 +180,10 @@ class SliceGuard:
             hf_auth_token=hf_auth_token,
             hf_num_proc=hf_num_proc,
             hf_batch_size=hf_batch_size,
-            split_key=split_key,
-            train_split=train_split,
-            task=task,
+            automl_split_key=automl_split_key,
+            automl_train_split=automl_train_split,
+            automl_task=automl_task,
+            automl_time_budget=automl_time_budget,
         )
 
         if len(mfs) > 0:
@@ -193,12 +197,15 @@ class SliceGuard:
             )
 
         elif y_pred is None:
-            pass  # TODO: Consider setting metric mode and metric according to task is not manually supplied?
+            if metric_mode is None:
+                metric_mode = "max"
         elif metric_mode is None:
             metric_mode = "max"
             print(
                 f"You didn't specify metric_mode parameter. Using {metric_mode} as default."
             )
+
+        assert metric_mode is not None
 
         group_dfs = detect_issues(
             mfs,
@@ -235,6 +242,7 @@ class SliceGuard:
                 issue_metric = clustering_df[clustering_df[clustering_col] == issue][
                     clustering_metric_col
                 ].values[0]
+
                 current_issue["metric"] = issue_metric
 
                 issues.append(current_issue)
@@ -402,9 +410,10 @@ class SliceGuard:
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
-        task="classification",
-        split_key=None,
-        train_split=None,
+        automl_task="classification",
+        automl_split_key=None,
+        automl_train_split=None,
+        automl_time_budget=None,
     ):
         assert (
             all([(f in data.columns or f in precomputed_embeddings) for f in features])
@@ -465,9 +474,12 @@ class SliceGuard:
             y_preds = fit_classification_regression_model(
                 encoded_data=encoded_data,
                 ys=df[y].values,
-                task=task,
-                split=df[split_key].values if split_key is not None else None,
-                train_split=train_split,
+                task=automl_task,
+                split=df[automl_split_key].values
+                if automl_split_key is not None
+                else None,
+                train_split=automl_train_split,
+                time_budget=automl_time_budget,
             )
 
             df[y_pred] = y_preds

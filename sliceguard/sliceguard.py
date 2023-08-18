@@ -7,13 +7,12 @@ warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 
 # Real imports
 from uuid import uuid4
-
-from flaml import AutoML
 from typing import List, Literal, Dict, Callable, Optional
 
 import pandas as pd
 import numpy as np
 import plotly.express as px
+
 
 from renumics import spotlight
 from renumics.spotlight.analysis.typing import DataIssue
@@ -23,7 +22,7 @@ from renumics.spotlight import layout
 from .utils import infer_feature_types, encode_normalize_features
 from .detection import generate_metric_frames, detect_issues
 from .explanation import explain_clusters
-from .modeling import fit_outlier_detection_model
+from .modeling import fit_outlier_detection_model, fit_classification_regression_model
 from .report import prepare_report
 
 
@@ -51,6 +50,9 @@ class SliceGuard:
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
+        task="classification",
+        split_key=None,
+        train_split=None,
     ):
         """
         Function to generate an interactive report that allows limited interactive exploration and
@@ -82,6 +84,9 @@ class SliceGuard:
             hf_auth_token=hf_auth_token,
             hf_num_proc=hf_num_proc,
             hf_batch_size=hf_batch_size,
+            split_key=split_key,
+            train_split=train_split,
+            task=task,
         )
 
         if y is None and y_pred is None and metric_mode is None:
@@ -119,9 +124,9 @@ class SliceGuard:
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
+        task="classification",
         split_key=None,
         train_split=None,
-        task='classification',
     ):
         """
         Find slices that are classified badly by your model.
@@ -143,6 +148,8 @@ class SliceGuard:
         :param hf_auth_token: The authentification token used to download embedding models from the huggingface hub.
         :param hf_num_proc: Multiprocessing used in audio/image preprocessing.
         :param hf_batch_size: Batch size used in computing embeddings.
+        :param split_key: Column used for splitting the data.
+        :param train_split: The value used for marking the train split. If supplied, rest of data will be used as validation set. If not supplied using crossvalidation.
         """
         self._df = data  # safe that here to not modify original dataframe accidentally
         df = data.copy()  # assign to shorter name
@@ -186,7 +193,7 @@ class SliceGuard:
             )
 
         elif y_pred is None:
-            print('TODO find issue case for y given and y_pred not.')
+            print("TODO find issue case for y given and y_pred not.")
 
         elif metric_mode is None:
             metric_mode = "max"
@@ -396,9 +403,9 @@ class SliceGuard:
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
+        task="classification",
         split_key=None,
         train_split=None,
-        task='classification',
     ):
         assert (
             all([(f in data.columns or f in precomputed_embeddings) for f in features])
@@ -431,8 +438,8 @@ class SliceGuard:
         )
 
         # If y and y_pred are non use an outlier detection algorithm to detect potential issues in the data.
-        # Lateron there could be also a case where y is given but no y_pred is given. Then just train a task specific surrogate model.
-        # However, besides regression and classification cases this could be much work. Consider using FLAML or other automl tooling here.
+        # If y is given but no y_pred is given just train a task specific surrogate model.
+        # Currently only classification and regression are supported.
         if y is None and y_pred is None:
             print(
                 "You didn't supply ground-truth labels and predictions. Will fit outlier detection model to find anomal slices instead."
@@ -454,39 +461,19 @@ class SliceGuard:
             self._generated_y_pred = ol_scores
 
         elif y_pred is None:
+            y_pred = "sg_y_pred"
 
-            y_pred = 'automl_prediction'
+            y_preds = fit_classification_regression_model(
+                encoded_data=encoded_data,
+                ys=df[y].values,
+                task=task,
+                split=df[split_key].values if split_key is not None else None,
+                train_split=train_split,
+            )
 
-            if split_key is not None:
+            df[y_pred] = y_preds
 
-                if train_split is not None:
-                    # TODO infer model from data
-                    split_mask = df[split_key] == train_split
-
-                    subset = df[split_mask]
-
-                    automl = AutoML()
-                    automl.fit(encoded_data[split_mask], subset[y], task=task)
-                    df[y_pred] = automl.predict(encoded_data[split_mask])
-                else:
-                    if len(df[split_key].unique()) < 2:
-                        print("Split column must contain at least 2 separate classes!")
-
-                    automl_setting = {
-                        "eval_method": "cv",
-                        "groups": df[split_key].values,
-                        "split_type": "group",
-                        "task": task,
-                    }
-
-                    automl = AutoML(**automl_setting)
-                    automl.fit(encoded_data, df[y])
-                    df[y_pred] = automl.predict(encoded_data)
-
-            else:
-                automl = AutoML()
-                automl.fit(encoded_data, df[y], task=task)
-                df[y_pred] = automl.predict(encoded_data)
+            self._generated_y_pred = df[y_pred].values
 
         # Perform detection of problematic clusters based on the given features
         # 1. A hierarchical clustering is performed and metrics are calculated for all hierarchies

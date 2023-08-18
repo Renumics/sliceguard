@@ -1,18 +1,6 @@
-import os
-import uuid
-import shutil
-from pathlib import Path
-from urllib.parse import urlparse
-
 from sklearn.metrics import accuracy_score
-import requests
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-from jiwer import wer
 import datasets
-from renumics.spotlight import Image, Audio
-import pickle
+
 
 from sliceguard import SliceGuard
 
@@ -23,13 +11,17 @@ def test_sliceguard_images():
 
     sg = SliceGuard()
     issue_df = sg.find_issues(
-        df.sample(100),
+        df.sample(1000),
         ["image"],
         "fine_label",
         metric=accuracy_score,
-        split_key='split',
-        task='regression'
+        split_key="split",
+        train_split="train",
+        task='classification',
+        min_drop=0.05,
+        min_support=10
     )
+    sg.report()
 
     # sg.report(spotlight_dtype={"image_path": Image})
 

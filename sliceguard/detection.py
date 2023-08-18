@@ -156,6 +156,8 @@ def detect_issues(
     clustering_cols: List[str],
     min_drop: float,
     min_support: int,
+    n_slices: int,
+    criterion: Literal["drop", "support", "drop+support"],
     metric_mode: Literal["min", "max"],
     drop_reference: Literal["overall", "parent"],
     remove_outliers: bool,
@@ -175,18 +177,12 @@ def detect_issues(
     # TODO: Determine if these values should be chosen adaptively, potentially differing on every level
     group_dfs = []
 
-    if min_drop is None:
-        min_drop = 0.1 * mfs[0].overall.values[0]
-    if min_support is None:
-        min_support = round(max(0.0025 * len(clustering_df), 5))
-    print(
-        f"Using {min_support} as minimum support for determining problematic clusters."
-    )
-    print(f"Using {min_drop} as minimum drop for determining problematic clusters.")
+    print(f"Using {n_slices} as maximum slice number to return.")
+    print(f"Using {criterion} as sorting criterion for the slices to return.")
 
     previous_clustering_col = None
 
-    for mf, clustering_col in zip(mfs, clustering_cols):
+    for hierarchy_level, (mf, clustering_col) in enumerate(zip(mfs, clustering_cols)):
         if drop_reference == "overall":
             drop_reference_value = mf.overall.values[0]
         elif drop_reference == "parent":
@@ -226,6 +222,8 @@ def detect_issues(
             ),
             axis=1,
         )
+
+        group_df["level"] = hierarchy_level
 
         # Compute the "true" support for each cluster.
         # There could be clusters where the overall metric looks bad but this is actually caused by one single outlier.
@@ -281,15 +279,43 @@ def detect_issues(
             drop_col = "drop"
             support_col = "support"
 
-        group_df["issue"] = False
-
-        group_df.loc[
-            (group_df[drop_col] >= min_drop) & (group_df[support_col] >= min_support),
-            "issue",
-        ] = True
-
         group_dfs.append(group_df)
 
         previous_clustering_col = clustering_col
+
+    if min_support is not None and min_drop is not None:
+        for group_df in group_dfs:
+            group_df["issue"] = False
+
+            group_df.loc[
+                (group_df[drop_col] >= min_drop)
+                & (group_df[support_col] >= min_support),
+                "issue",
+            ] = True
+    elif n_slices is not None and criterion is not None:
+        all_groups_df = pd.concat(group_dfs)
+        all_groups_df["drop+support"] = all_groups_df["drop"] * all_groups_df["support"]
+        assert (
+            criterion == "support" or criterion == "drop" or criterion == "drop+support"
+        )
+        all_groups_df = all_groups_df.sort_values(criterion, ascending=False)
+
+        for group_df in group_dfs:
+            group_df["issue"] = False
+
+        print(all_groups_df)
+
+        marked_issue_idx = 0
+        for idx, row in all_groups_df.iterrows():
+            group_dfs[int(row["level"])].loc[idx] = True
+
+            marked_issue_idx += 1
+            if marked_issue_idx >= n_slices:
+                break
+
+    else:
+        raise RuntimeError(
+            "Error: Invalid configuration involving n_slices, criterion, min_support, min_drop encountered!"
+        )
 
     return group_dfs

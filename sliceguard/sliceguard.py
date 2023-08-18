@@ -116,6 +116,8 @@ class SliceGuard:
         metric: Callable = None,
         min_support: int = None,
         min_drop: float = None,
+        n_slices: int = None,
+        criterion: Literal["drop", "support", "drop+support"] = None,
         metric_mode: Literal["min", "max"] = None,
         drop_reference: Literal["overall", "parent"] = "overall",
         remove_outliers: bool = False,
@@ -142,8 +144,10 @@ class SliceGuard:
         :param y: The column containing the ground-truth label.
         :param y_pred: The column containing your models prediction.
         :param metric: A callable metric function that must correspond to the form metric(y_true, y_pred) -> scikit-learn style.
-        :min_support: Minimum support for clusters that are listed as issues. If you are more looking towards outliers choose small values, if you target biases choose higher values.
-        :min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
+        :param: min_support: Minimum support for clusters that are listed as issues. If you are more looking towards outliers choose small values, if you target biases choose higher values.
+        :param: min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
+        :param: n_slices: Number of slices to return for review. Alternative interface to min_drop and min_support.
+        :param: criterion: Criterion after which the slices get sorted when using n_slices. One of drop, support or drop+support.
         :param metric_mode: What do you optimize your metric for? max is the right choice for accuracy while e.g. min is good for regression error.
         :param drop_reference: Determines what is the reference value for the drop. Overall is the metric on the whole dataset, parent is the parent cluster.
         :param remove_outliers: Account for outliers that disturb cluster detection.
@@ -157,6 +161,35 @@ class SliceGuard:
         :param split_key: Column used for splitting the data.
         :param train_split: The value used for marking the train split. If supplied, rest of data will be used as validation set. If not supplied using crossvalidation.
         """
+
+        # Validate if there is invalid configuration of slice return config
+        if (
+            min_drop is None
+            and min_support is None
+            and n_slices is None
+            and criterion is None
+        ):
+            n_slices = 20
+            criterion = "drop"
+        else:
+            if not (
+                (
+                    min_drop is not None
+                    and min_support is not None
+                    and n_slices is None
+                    and criterion is None
+                )
+                or (
+                    min_drop is None
+                    and min_support is None
+                    and n_slices is not None
+                    and criterion is not None
+                )
+            ):
+                raise RuntimeError(
+                    "Invalid Configuration: Use either n_slices and criterion or min_drop and min_support!"
+                )
+
         self._df = data  # safe that here to not modify original dataframe accidentally
         df = data.copy()  # assign to shorter name
 
@@ -217,6 +250,8 @@ class SliceGuard:
             clustering_cols,
             min_drop,
             min_support,
+            n_slices,
+            criterion,
             metric_mode,
             drop_reference,
             remove_outliers,
@@ -226,7 +261,7 @@ class SliceGuard:
 
         print(f"Identified {num_issues} problematic slices.")
 
-        # Construct the issue dataframe that is returned by this method
+        # Construct the issue list that is returned by this method
         issues = []
 
         issue_index = 0
@@ -423,9 +458,16 @@ class SliceGuard:
         assert (
             all([(f in data.columns or f in precomputed_embeddings) for f in features])
         ) and (
-            ((y_pred is not None) and (y is not None))  # Completly supervised case
-            or ((y_pred is None))
-        )  # Completely unsupervised case (outlier based)  # check presence of all columns
+            (
+                (y_pred is not None) and (y is not None) and (metric is not None)
+            )  # Completly supervised case
+            or (
+                (y_pred is None) and (y is not None) and (metric is not None)
+            )  # fit own model
+            or (
+                (y_pred is None) and (y is None) and (metric is None)
+            )  # Completely unsupervised case (outlier based)
+        )
 
         df = data  # just rename the variable for shorter naming
 

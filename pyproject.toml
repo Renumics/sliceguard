@@ -30,7 +30,11 @@ dependencies = [
   "renumics-spotlight >= 1.3.0",
   "plotly >= 5.15.0",
   "dash >= 2.11.1",
-  "flaml >= 2.0.0",
+]
+
+[project.optional-dependencies]
+AutoML = [
+  "flaml[automl] >= 2.0.0",
 ]
 
 [project.urls]

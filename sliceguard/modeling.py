@@ -2,8 +2,11 @@ import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import LabelEncoder
 from typing import Literal
-from flaml import AutoML
 
+try:
+    from flaml import AutoML
+except ImportError:
+    raise Warning("Optional dependency required! (pip install sliceguard[AutoML])")
 
 def fit_outlier_detection_model(encoded_data: np.array):
     clf = IsolationForest()

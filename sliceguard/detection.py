@@ -303,8 +303,6 @@ def detect_issues(
         for group_df in group_dfs:
             group_df["issue"] = False
 
-        print(all_groups_df)
-
         marked_issue_idx = 0
         for idx, row in all_groups_df.iterrows():
             group_dfs[int(row["level"])].loc[idx] = True

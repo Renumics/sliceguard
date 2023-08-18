@@ -174,7 +174,7 @@ def encode_normalize_features(
             reduced_embeddings = umap.UMAP(
                 n_neighbors=min(embeddings.shape[0] - 1, 15),
                 n_components=min(
-                    embeddings.shape[0] - 2, 8
+                    embeddings.shape[0] - 2, 32
                 ),  # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normlization.
                 # min_dist=0.0,
                 random_state=42,

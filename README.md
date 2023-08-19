@@ -67,9 +67,9 @@ sg.report()
 - [x] Large data support for detection and reporting, e.g., 500k audio samples with transcriptions
 - [x] Different interfaces from min_drop, min_support. Maybe n_slices and sort by criterion?
 - [x] Support application without model (by training simple baseline model)
+- [x] Improve normalization for mixed type runs e.g. embedding + one categorical or numeric variable.
 - [ ] Better sort criterion for support and drop combination using n_slices.
 - [ ] Robustify outlier detection algorithm. Probably better parameter choice.
-- [ ] Improve normalization for mixed type runs e.g. embedding + one categorical or numeric variable.
 - [ ] Add no_browser flag to report method to only get enriched dataframe?
 - [ ] Interpretable features for images, audio, text. E.g., dark image, quiet audio, long audio, contains common word x, ...
 - [ ] Generation of a summary report doing predefined checks

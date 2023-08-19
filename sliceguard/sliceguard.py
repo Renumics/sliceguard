@@ -311,8 +311,8 @@ class SliceGuard:
         spotlight_dtype: Dict[str, spotlight.dtypes.base.DType] = {},
         issue_portion: Optional[int | float] = None,
         non_issue_portion: Optional[int | float] = None,
-        host: str="127.0.0.1",
-        port: int="auto",
+        host: str = "127.0.0.1",
+        port: int = "auto",
     ):
         """
         Create an interactive report on the found issues in spotlight.
@@ -374,12 +374,11 @@ class SliceGuard:
         ].tolist()
         df = df.iloc[selected_dataframe_rows]
 
-
         # Insert the computed data projection if it exists.
         # Could not be the case when dealing with one or two categorical variables as there is no hnne projection involved for computing metrics.
         # Also if hnne fails and hdbscan is used as fallback projection will be None.
         embedding_dtypes = {}
-        
+
         if self._projection is not None:
             df["sg_projection"] = self._projection[selected_dataframe_rows].tolist()
             embedding_dtypes["sg_projection"] = Embedding
@@ -436,7 +435,13 @@ class SliceGuard:
             layout=layout.layout(
                 [
                     [layout.table()],
-                    [layout.similaritymap(columns=["sg_projection"] if self._projection is not None else None)],
+                    [
+                        layout.similaritymap(
+                            columns=["sg_projection"]
+                            if self._projection is not None
+                            else None
+                        )
+                    ],
                     [layout.histogram()],
                 ],
                 [[layout.widgets.Inspector()], [layout.widgets.Issues()]],

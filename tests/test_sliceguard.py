@@ -64,7 +64,7 @@ def test_sliceguard_text():
     # df["gender"] = df["gender"].astype("category")
     # df["accent"] = df["accent"].astype("category")
 
-    sg.report(spotlight_dtype={"audio": Audio})
+    # sg.report(spotlight_dtype={"audio": Audio})
 
     # sg._plot_clustering_overview()
 

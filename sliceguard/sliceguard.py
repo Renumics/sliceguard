@@ -66,6 +66,7 @@ class SliceGuard:
         (
             feature_types,
             encoded_data,
+            projection,
             mfs,
             clustering_df,
             clustering_cols,
@@ -196,6 +197,7 @@ class SliceGuard:
         (
             feature_types,
             encoded_data,
+            projection,
             mfs,
             clustering_df,
             clustering_cols,
@@ -299,6 +301,7 @@ class SliceGuard:
         self._clustering_df = clustering_df
         self._clustering_cols = clustering_cols
         self._metric_mode = metric_mode
+        self._projection = projection
         self.embeddings = raw_embeddings
 
         return issues
@@ -371,8 +374,17 @@ class SliceGuard:
         ].tolist()
         df = df.iloc[selected_dataframe_rows]
 
-        # Insert embeddings if they were computed
+
+        # Insert the computed data projection if it exists.
+        # Could not be the case when dealing with one or two categorical variables as there is no hnne projection involved for computing metrics.
+        # Also if hnne fails and hdbscan is used as fallback projection will be None.
         embedding_dtypes = {}
+        
+        if self._projection is not None:
+            df["sg_projection"] = self._projection[selected_dataframe_rows].tolist()
+            embedding_dtypes["sg_projection"] = Embedding
+
+        # Insert embeddings if they were computed
         for embedding_col, embeddings in self.embeddings.items():
             report_col_name = f"sg_emb_{embedding_col}"
             df[report_col_name] = np.array([e.tolist() for e in embeddings])[
@@ -424,7 +436,7 @@ class SliceGuard:
             layout=layout.layout(
                 [
                     [layout.table()],
-                    [layout.similaritymap()],
+                    [layout.similaritymap(columns=["sg_projection"] if self._projection is not None else None)],
                     [layout.histogram()],
                 ],
                 [[layout.widgets.Inspector()], [layout.widgets.Issues()]],
@@ -556,6 +568,7 @@ class SliceGuard:
         # 3. the reason for the problem e.g. feature combination or rule that is characteristic for the cluster is determined.
 
         (
+            projection,
             mfs,
             clustering_df,
             clustering_cols,
@@ -567,6 +580,7 @@ class SliceGuard:
         return (
             feature_types,
             encoded_data,
+            projection,
             mfs,
             clustering_df,
             clustering_cols,

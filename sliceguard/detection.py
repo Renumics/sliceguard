@@ -35,6 +35,8 @@ def generate_metric_frames(
     # Special cases, only one or two nominal feature where binning and clustering makes no sense.
     # Encoded data will not be used in this case, instead there will be one clustering with one entry
     # for each category.
+    projection = None
+
     if (
         len(feature_types.values()) == 1
         and list(feature_types.values())[0] == "nominal"
@@ -147,7 +149,7 @@ def generate_metric_frames(
                 clustering_df[col] == idx
             ).sum()
 
-    return mfs, clustering_df, clustering_cols, clustering_metric_cols
+    return projection, mfs, clustering_df, clustering_cols, clustering_metric_cols
 
 
 def detect_issues(

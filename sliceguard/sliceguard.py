@@ -116,8 +116,8 @@ class SliceGuard:
         metric: Callable = None,
         min_support: int = None,
         min_drop: float = None,
-        n_slices: int = 20,
-        criterion: Literal["drop", "support", "drop+support"] = "drop",
+        n_slices: int = None,
+        criterion: Literal["drop", "support", "drop+support"] = None,
         metric_mode: Literal["min", "max"] = None,
         drop_reference: Literal["overall", "parent"] = "overall",
         remove_outliers: bool = False,
@@ -308,6 +308,8 @@ class SliceGuard:
         spotlight_dtype: Dict[str, spotlight.dtypes.base.DType] = {},
         issue_portion: Optional[int | float] = None,
         non_issue_portion: Optional[int | float] = None,
+        host: str="127.0.0.1",
+        port: int="auto",
     ):
         """
         Create an interactive report on the found issues in spotlight.
@@ -386,10 +388,9 @@ class SliceGuard:
             issue_rows = np.where(df.index.isin(issue["indices"]))[0].tolist()
             issue_metric = issue["metric"]
             issue_title = f"{issue_metric:.2f} -> " + issue["explanation"]
+
             predicate_strings = [
-                "{1:.1f} < {0} < {2:.1f}".format(
-                    x["column"], x["minimum"], x["maximum"]
-                )
+                f"{x['minimum']:.1f}  < {x['column']} < {x['maximum']:.1f}"
                 for x in issue["predicates"]
                 if ("minimum" in x and "maximum" in x)
             ]
@@ -417,6 +418,8 @@ class SliceGuard:
         spotlight.show(
             df,
             dtype={**spotlight_dtype, **embedding_dtypes},
+            host=host,
+            port=port,
             issues=issue_list,
             layout=layout.layout(
                 [

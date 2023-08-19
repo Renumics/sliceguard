@@ -177,8 +177,13 @@ def detect_issues(
     # TODO: Determine if these values should be chosen adaptively, potentially differing on every level
     group_dfs = []
 
-    print(f"Using {n_slices} as maximum slice number to return.")
-    print(f"Using {criterion} as sorting criterion for the slices to return.")
+    if n_slices is not None and criterion is not None:
+        print(f"Using {n_slices} as maximum slice number to return.")
+        print(f"Using {criterion} as sorting criterion for the slices to return.")
+
+    if min_drop is not None and min_support is not None:
+        print(f"Using {min_drop} as minimum drop for clusters to return.")
+        print(f"Using {min_support} as minimum support for slices to return.")
 
     previous_clustering_col = None
 

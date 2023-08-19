@@ -69,14 +69,14 @@ sg.report()
 - [x] Support application without model (by training simple baseline model)
 - [x] Improve normalization for mixed type runs e.g. embedding + one categorical or numeric variable.
 - [ ] Better sort criterion for support and drop combination using n_slices.
+- [ ] Soft Dependencies for embedding computation as torch dependencies are large
+- [ ] Allow for control features in order to account for expected variations when running checks
 - [ ] Robustify outlier detection algorithm. Probably better parameter choice.
+- [ ] Walthroughs for unstructured, structured and mixed data. Also, in depth tutorial explaining all the parameters.
 - [ ] Add no_browser flag to report method to only get enriched dataframe?
 - [ ] Interpretable features for images, audio, text. E.g., dark image, quiet audio, long audio, contains common word x, ...
 - [ ] Generation of a summary report doing predefined checks
-- [ ] Allow for control features in order to account for expected variations when running checks
 - [ ] "Supervised" clustering that incorporates classes, probabilities, metrics, not only features
-- [ ] Soft Dependencies for embedding computation as torch dependencies are large
-- [ ] Extensive documentation and examples for common cases
 - [ ] Data connectors for faster application on common data formats
 - [ ] Support embedding generation for remote resources, e.g. audio/images hosted on webservers
 - [ ] Improved explanations for found issues, e.g., via SHAP

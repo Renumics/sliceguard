@@ -180,9 +180,11 @@ def encode_normalize_features(
             is_all_embeddings = all(
                 v == "embedding" or v == "raw" for v in feature_types.values()
             )
-            num_embedding_dimensions = 64
+            num_embedding_dimensions = 32
             num_mixed_dimensions = 8
             n_neighbors = 20
+
+            print(f"Pre-reducing feature {col} in mode {mode}.")
 
             op_mix_ratio_prereduction = 1.0
             if mode == "outlier":
@@ -193,38 +195,29 @@ def encode_normalize_features(
                 raise RuntimeError(
                     "Invalid mode. Could not determine opmix ratio for pre-reduction."
                 )
+            
 
             print(f"Using op mix ratio {op_mix_ratio_prereduction}.")
 
-            if not is_all_embeddings:
-                print(
-                    f"Pre-reducing {col} to allow for better clustering of mixed types."
-                )
-                reduced_embeddings = umap.UMAP(
-                    n_neighbors=min(embeddings.shape[0] - 1, n_neighbors),
-                    n_components=min(
-                        embeddings.shape[0] - 2, num_mixed_dimensions
-                    ),  # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normalization.
-                    # min_dist=0.0,
-                    random_state=42,
-                    set_op_mix_ratio=op_mix_ratio_prereduction,
-                ).fit_transform(embeddings)
+            if is_all_embeddings:
+                num_dimensions = num_embedding_dimensions
             else:
-                if mode == "automl" or embeddings.shape[0] > 70000:
-                    print(
-                        f"Pre-reducing {col} to make model training more performant. Consider using parameter automl_use_full_embedding."
-                    )
-                    reduced_embeddings = umap.UMAP(
-                        n_neighbors=min(embeddings.shape[0] - 1, n_neighbors),
-                        n_components=min(
-                            embeddings.shape[0] - 2, num_mixed_dimensions
-                        ),  # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normalization.
-                        # min_dist=0.0,
-                        random_state=42,
-                        set_op_mix_ratio=op_mix_ratio_prereduction,
-                    ).fit_transform(embeddings)
-                else:
-                    reduced_embeddings = embeddings
+                num_dimensions = num_mixed_dimensions
+
+            print(f"Using num dimensions {num_dimensions}.")
+
+            reduced_embeddings = umap.UMAP(
+                n_neighbors=min(embeddings.shape[0] - 1, n_neighbors),
+                n_components=min(
+                    embeddings.shape[0] - 2,
+                    num_dimensions,
+                ),  # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normalization.
+                # min_dist=0.0,
+                random_state=42,
+                set_op_mix_ratio=op_mix_ratio_prereduction,
+            ).fit_transform(embeddings)
+
+            
 
             # Do a normalization of the reduced embedding to match one hot encoded and ordinal encoding respectively
             # Therefore we will run hdbscan on the data real quick to do an estimate of the cluster distances.

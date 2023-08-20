@@ -502,6 +502,17 @@ class SliceGuard:
         # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant
         # See also connection with full report functionality. It makes sense to habe a feature and a samples based view!
 
+        run_mode = None
+
+        if y is None and y_pred is None:
+            mode = "outlier"
+        elif y_pred is None:
+            mode = "automl"
+        elif y is not None and y_pred is not None:
+            mode = "native"
+        else:
+            raise RuntimeError("Could not determine run mode.")
+
         # Encode the features for clustering according to inferred types
         encoded_data, prereduced_embeddings, raw_embeddings = encode_normalize_features(
             features,
@@ -513,12 +524,13 @@ class SliceGuard:
             hf_num_proc,
             hf_batch_size,
             df,
+            mode,
         )
 
         # If y and y_pred are non use an outlier detection algorithm to detect potential issues in the data.
         # If y is given but no y_pred is given just train a task specific surrogate model.
         # Currently only classification and regression are supported.
-        if y is None and y_pred is None:
+        if mode == "outlier":
             print(
                 "You didn't supply ground-truth labels and predictions. Will fit outlier detection model to find anomal slices instead."
             )
@@ -542,7 +554,7 @@ class SliceGuard:
 
             self._generated_y_pred = ol_scores
 
-        elif y_pred is None:
+        elif mode == "automl":
             y_pred = "sg_y_pred"
 
             X_data = [encoded_data]

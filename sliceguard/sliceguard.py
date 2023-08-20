@@ -120,6 +120,7 @@ class SliceGuard:
         n_slices: int = None,
         criterion: Literal["drop", "support", "drop*support"] = None,
         metric_mode: Literal["min", "max"] = None,
+        control_features = None,
         drop_reference: Literal["overall", "parent"] = "overall",
         remove_outliers: bool = False,
         feature_types: Dict[
@@ -145,11 +146,12 @@ class SliceGuard:
         :param y: The column containing the ground-truth label.
         :param y_pred: The column containing your models prediction.
         :param metric: A callable metric function that must correspond to the form metric(y_true, y_pred) -> scikit-learn style.
-        :param: min_support: Minimum support for clusters that are listed as issues. If you are more looking towards outliers choose small values, if you target biases choose higher values.
-        :param: min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
-        :param: n_slices: Number of slices to return for review. Alternative interface to min_drop and min_support.
-        :param: criterion: Criterion after which the slices get sorted when using n_slices. One of drop, support or drop*support.
+        :param min_support: Minimum support for clusters that are listed as issues. If you are more looking towards outliers choose small values, if you target biases choose higher values.
+        :param min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
+        :param n_slices: Number of slices to return for review. Alternative interface to min_drop and min_support.
+        :param criterion: Criterion after which the slices get sorted when using n_slices. One of drop, support or drop*support.
         :param metric_mode: What do you optimize your metric for? max is the right choice for accuracy while e.g. min is good for regression error.
+        :param control_features: Compute fairness metrics while accounting for the expected variance of this feature.
         :param drop_reference: Determines what is the reference value for the drop. Overall is the metric on the whole dataset, parent is the parent cluster.
         :param remove_outliers: Account for outliers that disturb cluster detection.
         :param feature_types: Specify how your feature should be treated in encoding and normalizing.
@@ -159,8 +161,11 @@ class SliceGuard:
         :param hf_auth_token: The authentification token used to download embedding models from the huggingface hub.
         :param hf_num_proc: Multiprocessing used in audio/image preprocessing.
         :param hf_batch_size: Batch size used in computing embeddings.
-        :param split_key: Column used for splitting the data.
-        :param train_split: The value used for marking the train split. If supplied, rest of data will be used as validation set. If not supplied using crossvalidation.
+        :param automl_task: The task specification for training an own model. Has to be one of classification or regression.
+        :param automl_split_key: Column used for splitting the data.
+        :param automl_train_split: The value used for marking the train split. If supplied, rest of data will be used as validation set. If not supplied using crossvalidation.
+        :param automl_time_budget: The time budget used for training an own model.
+        :param automl_use_full_embeddings: Wether to use the raw embeddings instead of the pre-reduced ones when training a model.
         """
 
         # Validate if there is invalid configuration of slice return config

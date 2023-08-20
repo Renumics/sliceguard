@@ -120,7 +120,6 @@ class SliceGuard:
         n_slices: int = None,
         criterion: Literal["drop", "support", "drop*support"] = None,
         metric_mode: Literal["min", "max"] = None,
-        control_features = None,
         drop_reference: Literal["overall", "parent"] = "overall",
         remove_outliers: bool = False,
         feature_types: Dict[
@@ -151,7 +150,6 @@ class SliceGuard:
         :param n_slices: Number of slices to return for review. Alternative interface to min_drop and min_support.
         :param criterion: Criterion after which the slices get sorted when using n_slices. One of drop, support or drop*support.
         :param metric_mode: What do you optimize your metric for? max is the right choice for accuracy while e.g. min is good for regression error.
-        :param control_features: Compute fairness metrics while accounting for the expected variance of this feature.
         :param drop_reference: Determines what is the reference value for the drop. Overall is the metric on the whole dataset, parent is the parent cluster.
         :param remove_outliers: Account for outliers that disturb cluster detection.
         :param feature_types: Specify how your feature should be treated in encoding and normalizing.

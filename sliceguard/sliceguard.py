@@ -118,7 +118,7 @@ class SliceGuard:
         min_support: int = None,
         min_drop: float = None,
         n_slices: int = None,
-        criterion: Literal["drop", "support", "drop+support"] = None,
+        criterion: Literal["drop", "support", "drop*support"] = None,
         metric_mode: Literal["min", "max"] = None,
         drop_reference: Literal["overall", "parent"] = "overall",
         remove_outliers: bool = False,
@@ -148,7 +148,7 @@ class SliceGuard:
         :param: min_support: Minimum support for clusters that are listed as issues. If you are more looking towards outliers choose small values, if you target biases choose higher values.
         :param: min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
         :param: n_slices: Number of slices to return for review. Alternative interface to min_drop and min_support.
-        :param: criterion: Criterion after which the slices get sorted when using n_slices. One of drop, support or drop+support.
+        :param: criterion: Criterion after which the slices get sorted when using n_slices. One of drop, support or drop*support.
         :param metric_mode: What do you optimize your metric for? max is the right choice for accuracy while e.g. min is good for regression error.
         :param drop_reference: Determines what is the reference value for the drop. Overall is the metric on the whole dataset, parent is the parent cluster.
         :param remove_outliers: Account for outliers that disturb cluster detection.

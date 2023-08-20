@@ -68,9 +68,8 @@ sg.report()
 - [x] Different interfaces from min_drop, min_support. Maybe n_slices and sort by criterion?
 - [x] Support application without model (by training simple baseline model)
 - [x] Improve normalization for mixed type runs e.g. embedding + one categorical or numeric variable.
-- [ ] Better sort criterion for support and drop combination using n_slices.
-- [ ] Soft Dependencies for embedding computation as torch dependencies are large
 - [ ] Allow for control features in order to account for expected variations when running checks
+- [ ] Soft Dependencies for embedding computation as torch dependencies are large
 - [ ] Robustify outlier detection algorithm. Probably better parameter choice.
 - [ ] Walthroughs for unstructured, structured and mixed data. Also, in depth tutorial explaining all the parameters.
 - [ ] Add no_browser flag to report method to only get enriched dataframe?

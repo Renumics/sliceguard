@@ -159,7 +159,7 @@ def detect_issues(
     min_drop: float,
     min_support: int,
     n_slices: int,
-    criterion: Literal["drop", "support", "drop+support"],
+    criterion: Literal["drop", "support", "drop*support"],
     metric_mode: Literal["min", "max"],
     drop_reference: Literal["overall", "parent"],
     remove_outliers: bool,
@@ -301,9 +301,9 @@ def detect_issues(
             ] = True
     elif n_slices is not None and criterion is not None:
         all_groups_df = pd.concat(group_dfs)
-        all_groups_df["drop+support"] = all_groups_df["drop"] * all_groups_df["support"]
+        all_groups_df["drop*support"] = all_groups_df["drop"] * all_groups_df["support"]
         assert (
-            criterion == "support" or criterion == "drop" or criterion == "drop+support"
+            criterion == "support" or criterion == "drop" or criterion == "drop*support"
         )
         all_groups_df = all_groups_df.sort_values(criterion, ascending=False)
 

@@ -9,7 +9,7 @@ try:
     from transformers import AutoFeatureExtractor, AutoModel
     import torch
 except ImportError:
-    raise Warning("Optional dependency required! (pip install sliceguard[Embedding])")
+    raise Warning("Optional dependency required! (pip install \"sliceguard[Embedding]\")")
 
 
 def generate_text_embeddings(

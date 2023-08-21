@@ -21,7 +21,7 @@ Go straight to our quickstart examples for your use case:
 
 * 🖼️ **[Unstructured data (images, audio, text)](examples/quickstart_unstructured_data.ipynb)**
 * 📈 **[Structured data (numerical, categorical variables)](examples/quickstart_structured_data.ipynb)**
-* 🖼️📈 **[Mixed data (data that contains both)](examples/quickstart_mixed_data.ipynb)**
+* 📊 **[Mixed data (data that contains both)](examples/quickstart_mixed_data.ipynb)**
 
 ## 🔧 Use case-specific examples
 * [Detecting issues in automatic speech recognition (ASR) models](examples/audio_issues_commonvoice_whisper.ipynb)

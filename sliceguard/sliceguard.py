@@ -243,9 +243,14 @@ class SliceGuard:
                 f"For outlier detection mode metric_mode will be set to {metric_mode} if not specified otherwise."
             )
 
-        elif y_pred is None:
-            if metric_mode is None:
+        elif y_pred is None and metric_mode is None:
+            if automl_task == "classification":
                 metric_mode = "max"
+            elif automl_task == "regression":
+                metric_mode = "min"
+            print(
+                f"You didn't specify metric_mode. For task {automl_task} using {metric_mode} as a default."
+            )
         elif metric_mode is None:
             metric_mode = "max"
             print(

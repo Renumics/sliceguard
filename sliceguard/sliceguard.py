@@ -47,6 +47,7 @@ class SliceGuard:
         feature_orders: Dict[str, list] = {},
         precomputed_embeddings: Dict[str, np.array] = {},
         embedding_models: Dict[str, str] = {},
+        embedding_weights: Dict[str, float] = {},
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
@@ -84,6 +85,7 @@ class SliceGuard:
             feature_orders=feature_orders,
             precomputed_embeddings=precomputed_embeddings,
             embedding_models=embedding_models,
+            embedding_weights=embedding_weights,
             hf_auth_token=hf_auth_token,
             hf_num_proc=hf_num_proc,
             hf_batch_size=hf_batch_size,
@@ -128,6 +130,7 @@ class SliceGuard:
         feature_orders: Dict[str, list] = {},
         precomputed_embeddings: Dict[str, np.array] = {},
         embedding_models: Dict[str, str] = {},
+        embedding_weights: Dict[str, float] = {},
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
@@ -155,7 +158,8 @@ class SliceGuard:
         :param feature_types: Specify how your feature should be treated in encoding and normalizing.
         :param feature_orders: If your feature is ordinal, specify the order of that should be used for encoding. This is required for EVERY ordinal feature.
         :param precomputed_embeddings: Supply precomputed embeddings for raw columns. E.g. if repeatedly running checks on your data.
-        :param embedding_model: Supply embedding models that should be used to compute embedding vectors from raw data.
+        :param embedding_models: Supply embedding models that should be used to compute embedding vectors from raw data.
+        :param embedding_weight: Lower the influence of embedding values in mixed inferences by setting it lower than 1.0.
         :param hf_auth_token: The authentification token used to download embedding models from the huggingface hub.
         :param hf_num_proc: Multiprocessing used in audio/image preprocessing.
         :param hf_batch_size: Batch size used in computing embeddings.
@@ -218,6 +222,7 @@ class SliceGuard:
             feature_orders=feature_orders,
             precomputed_embeddings=precomputed_embeddings,
             embedding_models=embedding_models,
+            embedding_weights=embedding_weights,
             hf_auth_token=hf_auth_token,
             hf_num_proc=hf_num_proc,
             hf_batch_size=hf_batch_size,
@@ -471,6 +476,7 @@ class SliceGuard:
         feature_orders: Dict[str, list] = {},
         precomputed_embeddings: Dict[str, np.array] = {},
         embedding_models: Dict[str, str] = {},
+        embedding_weights: Dict[str, float] = {},
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
@@ -522,6 +528,7 @@ class SliceGuard:
             feature_orders,
             precomputed_embeddings,
             embedding_models,
+            embedding_weights,
             hf_auth_token,
             hf_num_proc,
             hf_batch_size,

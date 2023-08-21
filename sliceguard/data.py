@@ -1,6 +1,6 @@
 import pandas as pd
 import datasets
-from datasets import Image, ClassLabel, Value
+from datasets import Image, ClassLabel, Value, Sequence
 
 
 def from_huggingface(dataset_identifier: str):
@@ -19,21 +19,27 @@ def from_huggingface(dataset_identifier: str):
                 not isinstance(ftype, Image)
                 and not isinstance(ftype, ClassLabel)
                 and not isinstance(ftype, Value)
+                and not isinstance(ftype, Sequence)
             ):
                 raise RuntimeError(
                     f"Found unsupported datatype {ftype}. Use custom load function."
                 )
+            # Run transformations for specific data types if needed.
             if isinstance(ftype, ClassLabel):
                 class_label_lookup = {i: l for i, l in enumerate(ftype.names)}
                 split_df[fname] = split_df[fname].map(lambda x: class_label_lookup[x])
 
             if isinstance(ftype, Image):
-                first_item = split_df[fname].iloc[0]
-                if not "path" in first_item:
-                    raise RuntimeError(
-                        "Images are not extracted onto harddrive. Currently this is not supported."
+                all_has_paths = all(
+                    x is not None and "path" in x for x in split_df[fname].values
+                )
+                if not all_has_paths:
+                    print(
+                        f"Column {fname} dropped. Images are not extracted onto harddrive. Currently this is not supported."
                     )
-                split_df[fname] = split_df[fname].map(lambda x: x["path"])
+                    split_df = split_df.drop(columns=fname)
+                else:
+                    split_df[fname] = split_df[fname].map(lambda x: x["path"])
 
         if overall_df is None:
             overall_df = split_df

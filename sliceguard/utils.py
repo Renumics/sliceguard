@@ -73,6 +73,7 @@ def encode_normalize_features(
     feature_orders: Dict[str, list],
     precomputed_embeddings: Dict[str, np.array],
     embedding_models: Dict[str, str],
+    embedding_weights: Dict[str, float],
     hf_auth_token: str,
     hf_num_proc: Optional[int],
     hf_batch_size: int,
@@ -103,9 +104,8 @@ def encode_normalize_features(
             one_hot_data = OneHotEncoder(sparse_output=False).fit_transform(
                 df[col].values.reshape(-1, 1)
             )
-            one_hot_data = (
-                one_hot_data / 1.41
-            )  # all other data shold have approximately range 0 to 1 so match this!
+            # TODO: Should one hot encoded data be further normalized? Max distance is 1.41. Should this be 1?
+            # Also how is the ordinal data doing. Currently compressed to 0-1. This might be not good.
             encoded_data = np.concatenate((encoded_data, one_hot_data), axis=1)
         elif feature_type == "ordinal":
             if col not in feature_orders:
@@ -230,6 +230,13 @@ def encode_normalize_features(
                     distances.flatten().mean()
                 )  # TODO: Verify if mean is the right thing. Potentially should be done with RobustScaler?
                 reduced_embeddings = reduced_embeddings / mean_distance
+
+            # Use embedding weight if given for this particular embedding
+            if col in embedding_weights:
+                print(
+                    f"Weighting the embedding with manually supplied weight {embedding_weights[col]}."
+                )
+                reduced_embeddings = reduced_embeddings * embedding_weights[col]
 
             # safe this as it can be used for generating explanations again
             # do not normalize as this will probably cause non blobby clusters and it is unclear what clustering assumes

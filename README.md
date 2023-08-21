@@ -17,37 +17,11 @@ It also allows for interactive reporting and exploration of found data issues us
 
 Install sliceguard by running `pip install sliceguard`.
 
-Download the [Example Dataset](example_data.json).
+Go straight to our quickstart examples for your use case:
 
-Install the jiwer package for computing the word error rate metric using `pip install jiwer`
-
-Get started by loading your first dataset and let sliceguard do its work:
-
-```python
-import pandas as pd
-import numpy as np
-from jiwer import wer
-from sliceguard import SliceGuard
-
-# Load the example data
-df = pd.read_json("example_data.json")
-
-# Define a metric function to evaluate your model
-def wer_metric(y_true, y_pred):
-    return np.mean([wer(s_y, s_pred) for s_y, s_pred in zip(y_true, y_pred)])
-
-# Detect problematic data slices using the features age, gender and accent
-sg = SliceGuard()
-issue_df = sg.find_issues(
-    df,
-    ["age", "gender", "accent"],
-    "sentence",
-    "prediction",
-    wer_metric,
-    metric_mode="min"
-)
-sg.report()
-```
+* 🖼️ **[Unstructured data (images, audio, text)](examples/quickstart_unstructured_data.ipynb)**
+* 📈 **[Structured data (numerical, categorical variables)](examples/quickstart_structured_data.ipynb)**
+* 🖼️📈 **[Mixed data (data that contains both)](examples/quickstart_mixed_data.ipynb)**
 
 ## 🔧 Use case-specific examples
 * [Detecting issues in automatic speech recognition (ASR) models](examples/audio_issues_commonvoice_whisper.ipynb)
@@ -68,7 +42,7 @@ sg.report()
 - [x] Different interfaces from min_drop, min_support. Maybe n_slices and sort by criterion?
 - [x] Support application without model (by training simple baseline model)
 - [x] Improve normalization for mixed type runs e.g. embedding + one categorical or numeric variable.
-- [ ] Walthroughs for unstructured, structured and mixed data. Also, in depth tutorial explaining all the parameters.
+- [x] Walthroughs for unstructured, structured and mixed data. Also, in depth tutorial explaining all the parameters.
 - [ ] Soft Dependencies for embedding computation as torch dependencies are large
 - [ ] Allow for model comparisons via intersection, difference, ...
 - [ ] Robustify outlier detection algorithm. Probably better parameter choice.

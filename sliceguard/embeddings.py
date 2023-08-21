@@ -1,11 +1,15 @@
 # Embedding support for text, images, audio
 from multiprocess import set_start_method
 import pandas as pd
-from sentence_transformers import SentenceTransformer
-from transformers import AutoFeatureExtractor, AutoModel
 import datasets
 import numpy as np
-import torch
+
+try:
+    from sentence_transformers import SentenceTransformer
+    from transformers import AutoFeatureExtractor, AutoModel
+    import torch
+except ImportError:
+    raise Warning("Optional dependency required! (pip install sliceguard[Embedding])")
 
 
 def generate_text_embeddings(

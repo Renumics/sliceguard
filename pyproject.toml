@@ -35,6 +35,12 @@ dependencies = [
 [project.optional-dependencies]
 AutoML = [
   "flaml[automl] >= 2.0.0",
+  "xgboost",
+]
+Embedding = [
+    "sentence_transformers",
+    "transformers",
+    "torch",
 ]
 
 [project.urls]

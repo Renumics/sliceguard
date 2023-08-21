@@ -6,7 +6,7 @@ from typing import Literal
 try:
     from flaml import AutoML
 except ImportError:
-    raise Warning("Optional dependency required! (pip install sliceguard[AutoML])")
+    raise Warning("Optional dependency required! (pip install \"sliceguard[AutoML]\")")
 
 def fit_outlier_detection_model(encoded_data: np.array):
     clf = IsolationForest()

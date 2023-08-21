@@ -1,6 +1,6 @@
 import pandas as pd
 import datasets
-from datasets import Image, ClassLabel
+from datasets import Image, ClassLabel, Value
 
 
 def from_huggingface(dataset_identifier: str):
@@ -15,7 +15,11 @@ def from_huggingface(dataset_identifier: str):
         split_df["split"] = split
 
         for fname, ftype in cur_split.features.items():
-            if not isinstance(ftype, Image) and not isinstance(ftype, ClassLabel):
+            if (
+                not isinstance(ftype, Image)
+                and not isinstance(ftype, ClassLabel)
+                and not isinstance(ftype, Value)
+            ):
                 raise RuntimeError(
                     f"Found unsupported datatype {ftype}. Use custom load function."
                 )

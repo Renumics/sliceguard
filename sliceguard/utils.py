@@ -195,7 +195,6 @@ def encode_normalize_features(
                 raise RuntimeError(
                     "Invalid mode. Could not determine opmix ratio for pre-reduction."
                 )
-            
 
             print(f"Using op mix ratio {op_mix_ratio_prereduction}.")
 
@@ -217,8 +216,6 @@ def encode_normalize_features(
                 set_op_mix_ratio=op_mix_ratio_prereduction,
             ).fit_transform(embeddings)
 
-            
-
             # Do a normalization of the reduced embedding to match one hot encoded and ordinal encoding respectively
             # Therefore we will run hdbscan on the data real quick to do an estimate of the cluster distances.
             # Then the data will be normalized to make the average cluster distances approximately 1.
@@ -229,7 +226,9 @@ def encode_normalize_features(
                 hdbscan.fit(reduced_embeddings)
                 centroids = hdbscan.centroids_
                 distances = pairwise_distances(centroids, centroids, metric="euclidean")
-                mean_distance = distances.flatten().mean()
+                mean_distance = (
+                    distances.flatten().mean()
+                )  # TODO: Verify if mean is the right thing. Potentially should be done with RobustScaler?
                 reduced_embeddings = reduced_embeddings / mean_distance
 
             # safe this as it can be used for generating explanations again

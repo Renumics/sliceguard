@@ -316,6 +316,7 @@ class SliceGuard:
         non_issue_portion: Optional[int | float] = None,
         host: str = "127.0.0.1",
         port: int = "auto",
+        no_browser: bool = False,
     ):
         """
         Create an interactive report on the found issues in spotlight.
@@ -429,27 +430,28 @@ class SliceGuard:
 
         issue_list = np.array(data_issues)[data_issue_order].tolist()
 
-        spotlight.show(
-            df,
-            dtype={**spotlight_dtype, **embedding_dtypes},
-            host=host,
-            port=port,
-            issues=issue_list,
-            layout=layout.layout(
-                [
-                    [layout.table()],
+        if not no_browser:
+            spotlight.show(
+                df,
+                dtype={**spotlight_dtype, **embedding_dtypes},
+                host=host,
+                port=port,
+                issues=issue_list,
+                layout=layout.layout(
                     [
-                        layout.similaritymap(
-                            columns=["sg_projection"]
-                            if self._projection is not None
-                            else None
-                        )
+                        [layout.table()],
+                        [
+                            layout.similaritymap(
+                                columns=["sg_projection"]
+                                if self._projection is not None
+                                else None
+                            )
+                        ],
+                        [layout.histogram()],
                     ],
-                    [layout.histogram()],
-                ],
-                [[layout.widgets.Inspector()], [layout.widgets.Issues()]],
-            ),
-        )
+                    [[layout.widgets.Inspector()], [layout.widgets.Issues()]],
+                ),
+            )
         return (
             df,
             issue_list,

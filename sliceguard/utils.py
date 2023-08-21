@@ -3,6 +3,8 @@ from typing import List, Dict, Literal, Optional
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, RobustScaler
+from sklearn.cluster import HDBSCAN
+from sklearn.metrics import pairwise_distances
 import umap
 
 from .embeddings import (
@@ -71,10 +73,12 @@ def encode_normalize_features(
     feature_orders: Dict[str, list],
     precomputed_embeddings: Dict[str, np.array],
     embedding_models: Dict[str, str],
+    embedding_weights: Dict[str, float],
     hf_auth_token: str,
     hf_num_proc: Optional[int],
     hf_batch_size: int,
     df: pd.DataFrame,
+    mode: Literal["outlier", "automl", "native"],
 ):
     """
     :param features: Names of features that should be encoded and normalized for later processing.
@@ -100,6 +104,8 @@ def encode_normalize_features(
             one_hot_data = OneHotEncoder(sparse_output=False).fit_transform(
                 df[col].values.reshape(-1, 1)
             )
+            # TODO: Should one hot encoded data be further normalized? Max distance is 1.41. Should this be 1?
+            # Also how is the ordinal data doing. Currently compressed to 0-1. This might be not good.
             encoded_data = np.concatenate((encoded_data, one_hot_data), axis=1)
         elif feature_type == "ordinal":
             if col not in feature_orders:
@@ -171,21 +177,66 @@ def encode_normalize_features(
                 raw_embeddings[col] = embeddings
 
             # TODO: Potentially filter out entries without valid embedding or replace with mean?
+            is_all_embeddings = all(
+                v == "embedding" or v == "raw" for v in feature_types.values()
+            )
+            num_embedding_dimensions = 32
+            num_mixed_dimensions = 8
+            n_neighbors = 20
+
+            print(f"Pre-reducing feature {col} in mode {mode}.")
+
+            op_mix_ratio_prereduction = 1.0
+            if mode == "outlier":
+                op_mix_ratio_prereduction = 0.25
+            elif mode == "native" or mode == "automl":
+                op_mix_ratio_prereduction = 0.8
+            else:
+                raise RuntimeError(
+                    "Invalid mode. Could not determine opmix ratio for pre-reduction."
+                )
+
+            print(f"Using op mix ratio {op_mix_ratio_prereduction}.")
+
+            if is_all_embeddings:
+                num_dimensions = num_embedding_dimensions
+            else:
+                num_dimensions = num_mixed_dimensions
+
+            print(f"Using num dimensions {num_dimensions}.")
+
             reduced_embeddings = umap.UMAP(
-                n_neighbors=min(embeddings.shape[0] - 1, 15),
+                n_neighbors=min(embeddings.shape[0] - 1, n_neighbors),
                 n_components=min(
-                    embeddings.shape[0] - 2, 8
-                ),  # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normlization.
+                    embeddings.shape[0] - 2,
+                    num_dimensions,
+                ),  # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normalization.
                 # min_dist=0.0,
                 random_state=42,
+                set_op_mix_ratio=op_mix_ratio_prereduction,
             ).fit_transform(embeddings)
 
-            # TODO: Check if normalization makes sense. Probably do not normalize dimensiosn indenpendently!
-            # reduced_embeddings = RobustScaler(
-            #     quantile_range=(2.5, 97.5)
-            # ).fit_transform(
-            #     reduced_embeddings
-            # )
+            # Do a normalization of the reduced embedding to match one hot encoded and ordinal encoding respectively
+            # Therefore we will run hdbscan on the data real quick to do an estimate of the cluster distances.
+            # Then the data will be normalized to make the average cluster distances approximately 1.
+            if not is_all_embeddings:
+                hdbscan = HDBSCAN(
+                    min_cluster_size=2, metric="euclidean", store_centers="centroid"
+                )
+                hdbscan.fit(reduced_embeddings)
+                centroids = hdbscan.centroids_
+                distances = pairwise_distances(centroids, centroids, metric="euclidean")
+                mean_distance = (
+                    distances.flatten().mean()
+                )  # TODO: Verify if mean is the right thing. Potentially should be done with RobustScaler?
+                reduced_embeddings = reduced_embeddings / mean_distance
+
+            # Use embedding weight if given for this particular embedding
+            if col in embedding_weights:
+                print(
+                    f"Weighting the embedding with manually supplied weight {embedding_weights[col]}."
+                )
+                reduced_embeddings = reduced_embeddings * embedding_weights[col]
 
             # safe this as it can be used for generating explanations again
             # do not normalize as this will probably cause non blobby clusters and it is unclear what clustering assumes

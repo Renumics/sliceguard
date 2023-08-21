@@ -97,11 +97,7 @@ def explain_clusters(features, feature_types, issues, df, prereduced_embeddings)
         for f, i in zip(ordered_features[:3], ordered_importances[:3]):
             importance_strings.append(f"{f}, ({i:.2f})")
             feature_type = feature_types[f]
-            if (
-                feature_type == "numerical"
-                or feature_type == "nominal"
-                or feature_type == "ordinal"
-            ):
+            if feature_type == "numerical":
                 val = df[f][issue_indices_pandas]
                 predicates_list.append(
                     {"column": f, "minimum": val.min(), "maximum": val.max()}

@@ -36,8 +36,8 @@ def test_sliceguard_text():
 
     sg = SliceGuard()
     issue_df = sg.find_issues(
-        df,
-        ["accent", "age", "gender"],
+        df.sample(200),
+        ["accent", "sentence"],
         "sentence",
         "prediction",
         wer_metric,
@@ -56,15 +56,15 @@ def test_sliceguard_text():
                 "nineties",
             ]
         },
-        min_support=30,
-        min_drop=0.04,
+        # min_support=30,
+        # min_drop=0.04,
     )
 
     # df["age"] = df["age"].astype("category")
     # df["gender"] = df["gender"].astype("category")
     # df["accent"] = df["accent"].astype("category")
 
-    sg.report(spotlight_dtype={"audio": Audio})
+    # sg.report(spotlight_dtype={"audio": Audio})
 
     # sg._plot_clustering_overview()
 
@@ -158,6 +158,6 @@ def test_sliceguard_audio():
 
 
 if __name__ == "__main__":
-    # test_sliceguard_text()
+    test_sliceguard_text()
     # test_sliceguard_images()
-    test_sliceguard_audio()
+    # test_sliceguard_audio()

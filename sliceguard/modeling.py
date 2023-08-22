@@ -7,7 +7,7 @@ def get_automl_imports():
     try:
         from flaml import AutoML
     except ImportError:
-        raise Warning("Optional dependency required! (pip install \"sliceguard[AutoML]\")")
+        raise Warning("Optional dependency required! (pip install \"sliceguard[automl]\")")
 
     return AutoML
 

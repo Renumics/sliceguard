@@ -288,10 +288,14 @@ class SliceGuard:
             hierarchy_issues = group_df[group_df["issue"] == True].index
             for issue in hierarchy_issues:
                 current_issue = {"id": issue_index, "level": hierarchy_level}
+
                 issue_indices = clustering_df[
                     clustering_df[clustering_col] == issue
                 ].index.values
                 current_issue["indices"] = issue_indices
+
+                issue_rows = np.where(clustering_df[clustering_col] == issue)[0]
+                current_issue["rows"] = issue_rows
 
                 issue_metric = clustering_df[clustering_df[clustering_col] == issue][
                     clustering_metric_col
@@ -340,32 +344,32 @@ class SliceGuard:
         df = self._df.copy()
 
         # Determine indices for downsampling if supplied.
-        issue_indices = []
+        issue_rows = []
         for issue in self._issues:
-            issue_indices.extend(issue["indices"])
-        issue_indices = list(set(issue_indices))
+            issue_rows.extend(issue["rows"])
+        issue_rows = list(set(issue_rows))
 
-        non_issue_indices = np.setdiff1d(df.index, issue_indices)
+        non_issue_rows = np.setdiff1d(np.arange(len(df)), issue_rows)
 
         if issue_portion is not None:
             if isinstance(issue_portion, float):
-                issue_portion = round(min(1.0, issue_portion) * len(issue_indices))
+                issue_portion = round(min(1.0, issue_portion) * len(issue_rows))
             elif isinstance(issue_portion, int):
                 pass  # Do nothing
             else:
                 raise RuntimeError(
                     "Invalid value supplied to issue_portion. Must be int or float."
                 )
-            selected_issue_indices = np.random.choice(
-                issue_indices, size=issue_portion, replace=False
+            selected_issue_rows = np.random.choice(
+                issue_rows, size=issue_portion, replace=False
             )
         else:
-            selected_issue_indices = issue_indices
+            selected_issue_rows = issue_rows
 
         if non_issue_portion is not None:
             if isinstance(non_issue_portion, float):
                 non_issue_portion = round(
-                    min(1.0, non_issue_portion) * len(issue_indices)
+                    min(1.0, non_issue_portion) * len(non_issue_rows)
                 )
             elif isinstance(non_issue_portion, int):
                 pass  # Do nothing
@@ -373,19 +377,19 @@ class SliceGuard:
                 raise RuntimeError(
                     "Invalid value supplied to non_issue_portion. Must be int or float."
                 )
-            selected_non_issue_indices = np.random.choice(
-                issue_indices, size=non_issue_portion, replace=False
+            selected_non_issue_rows = np.random.choice(
+                non_issue_rows, size=non_issue_portion, replace=False
             )
         else:
-            selected_non_issue_indices = non_issue_indices
+            selected_non_issue_rows = non_issue_rows
 
         # Downsample the dataframe
-        selected_dataframe_indices = np.concatenate(
-            (selected_issue_indices, selected_non_issue_indices)
+        selected_dataframe_rows = np.sort(
+            np.concatenate(
+                (selected_issue_rows, selected_non_issue_rows)
+            )  # Do not change the order of the dataframe here. This was a hard to find bug!!!
         )
-        selected_dataframe_rows = np.where(df.index.isin(selected_dataframe_indices))[
-            0
-        ].tolist()
+
         df = df.iloc[selected_dataframe_rows]
 
         # Insert the computed data projection if it exists.
@@ -410,7 +414,6 @@ class SliceGuard:
         for issue in self._issues:
             # Note: Has to be row index not pandas index! Also note that the expression should be enough to filter out items that are not in the dataframe
             # because of downsampling. However, take care when changing something.
-            issue_rows = np.where(df.index.isin(issue["indices"]))[0].tolist()
             issue_metric = issue["metric"]
             issue_title = f"{issue_metric:.2f} -> " + issue["explanation"]
 
@@ -420,6 +423,10 @@ class SliceGuard:
                 if ("minimum" in x and "maximum" in x)
             ]
             issue_explanation = "; ".join(predicate_strings)
+
+            issue_rows = np.where(np.isin(selected_dataframe_rows, issue["rows"]))[
+                0
+            ].tolist()
 
             data_issue = DataIssue(
                 severity="medium",

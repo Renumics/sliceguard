@@ -38,6 +38,9 @@ def _extract_embeddings_images(model, feature_extractor, col_name="image"):
         images = batch[
             col_name
         ]  # not sure if this is smart. probably some feature extractors take multiple modalities.
+        for i in range(len(images)):
+            if images[i].mode != "RGB":
+                images[i] = images[i].convert("RGB")
         inputs = feature_extractor(images=images, return_tensors="pt").to(device)
         with torch.no_grad():
             embeddings = model(**inputs).last_hidden_state[:, 0].detach().cpu().numpy()

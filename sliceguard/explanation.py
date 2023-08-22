@@ -64,10 +64,9 @@ def explain_clusters(features, feature_types, issues, df, prereduced_embeddings)
     # TODO: Probably try shap or something similar
 
     for issue in issues:
-        issue_indices_pandas = issue["indices"]
-        issue_indices_list = np.where(df.index.isin(issue["indices"]))[0]
+        issue_rows = issue["rows"]
         y = np.zeros(len(df))
-        y[issue_indices_list] = 1
+        y[issue_rows] = 1
         clf = DecisionTreeClassifier(
             max_depth=3, max_features=4
         )  # keep the trees simple to not overfit
@@ -98,7 +97,7 @@ def explain_clusters(features, feature_types, issues, df, prereduced_embeddings)
             importance_strings.append(f"{f}, ({i:.2f})")
             feature_type = feature_types[f]
             if feature_type == "numerical":
-                val = df[f][issue_indices_pandas]
+                val = df[f].iloc[issue_rows]
                 predicates_list.append(
                     {"column": f, "minimum": val.min(), "maximum": val.max()}
                 )

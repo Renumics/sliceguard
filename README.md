@@ -33,9 +33,9 @@ Go straight to our quickstart examples for your use case:
 * 📊 **[Mixed data (data that contains both)](examples/quickstart_mixed_data.ipynb)**
 
 ## 🔧 Use case-specific examples
-* **[Detecting issues in automatic speech recognition (ASR) models](examples/audio_issues_commonvoice_whisper.ipynb)**
-* **[Detecting issues in audio datasets (condition monitoring)](examples/audio_issues_condition_monitoring_dcase.ipynb)**
-* **[Selecting the best (and worst) generated images of Stable Diffusion](examples/stable_diffusion_evaluation.ipynb)**
+* 🗣️ **[Detecting issues in automatic speech recognition (ASR) models](examples/audio_issues_commonvoice_whisper.ipynb)**
+* 🛠️ **[Detecting issues in audio datasets (condition monitoring)](examples/audio_issues_condition_monitoring_dcase.ipynb)**
+* 🌆 **[Selecting the best (and worst) generated images of Stable Diffusion](examples/stable_diffusion_evaluation.ipynb)**
 
 
 ## 🗺️ Public Roadmap

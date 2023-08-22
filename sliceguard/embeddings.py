@@ -5,13 +5,16 @@ import pandas as pd
 import datasets
 import numpy as np
 
+
 def get_embedding_imports():
     try:
         from sentence_transformers import SentenceTransformer
         from transformers import AutoFeatureExtractor, AutoModel
         import torch
     except ImportError:
-        raise Warning("Optional dependency required! (pip install \"sliceguard[embedding]\")")
+        raise Warning(
+            'Optional dependency required! (pip install "sliceguard[embedding]")'
+        )
 
     return SentenceTransformer, AutoFeatureExtractor, AutoModel, torch
 
@@ -70,7 +73,6 @@ def generate_image_embeddings(
     hf_num_proc=None,
     hf_batch_size=1,
 ):
-
     _, AutoFeatureExtractor, AutoModel, torch = get_embedding_imports()
     feature_extractor = AutoFeatureExtractor.from_pretrained(
         model_name, use_auth_token=hf_auth_token

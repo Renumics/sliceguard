@@ -368,7 +368,9 @@ class SliceGuard:
 
         if non_issue_portion is not None:
             if isinstance(non_issue_portion, float):
-                non_issue_portion = round(min(1.0, non_issue_portion) * len(issue_rows))
+                non_issue_portion = round(
+                    min(1.0, non_issue_portion) * len(non_issue_rows)
+                )
             elif isinstance(non_issue_portion, int):
                 pass  # Do nothing
             else:
@@ -376,14 +378,16 @@ class SliceGuard:
                     "Invalid value supplied to non_issue_portion. Must be int or float."
                 )
             selected_non_issue_rows = np.random.choice(
-                issue_rows, size=non_issue_portion, replace=False
+                non_issue_rows, size=non_issue_portion, replace=False
             )
         else:
             selected_non_issue_rows = non_issue_rows
 
         # Downsample the dataframe
-        selected_dataframe_rows = np.concatenate(
-            (selected_issue_rows, selected_non_issue_rows)
+        selected_dataframe_rows = np.sort(
+            np.concatenate(
+                (selected_issue_rows, selected_non_issue_rows)
+            )  # Do not change the order of the dataframe here. This was a hard to find bug!!!
         )
 
         df = df.iloc[selected_dataframe_rows]
@@ -420,11 +424,15 @@ class SliceGuard:
             ]
             issue_explanation = "; ".join(predicate_strings)
 
+            issue_rows = np.where(np.isin(selected_dataframe_rows, issue["rows"]))[
+                0
+            ].tolist()
+
             data_issue = DataIssue(
                 severity="medium",
                 title=issue_title,
                 description=issue_explanation,
-                rows=issue["rows"].tolist(),
+                rows=issue_rows,
                 columns=[x["column"] for x in issue["predicates"]],
             )
             data_issues.append(data_issue)

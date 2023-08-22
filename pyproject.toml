@@ -29,11 +29,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-AutoML = [
-  "flaml[automl] >= 2.0.0",
-  "xgboost",
+automl = [
+  "flaml >= 2.0.0",
+  "xgboost >= 1.7.6",
 ]
-Embedding = [
+embedding = [
   "transformers >= 4.30.2",
   "sentence-transformers >= 2.2.1",
   "torch >= 2.0.1",

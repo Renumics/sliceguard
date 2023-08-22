@@ -1,15 +1,19 @@
 # Embedding support for text, images, audio
+from inspect import getmembers
 from multiprocess import set_start_method
 import pandas as pd
 import datasets
 import numpy as np
 
-try:
-    from sentence_transformers import SentenceTransformer
-    from transformers import AutoFeatureExtractor, AutoModel
-    import torch
-except ImportError:
-    raise Warning("Optional dependency required! (pip install \"sliceguard[Embedding]\")")
+def get_embedding_imports():
+    try:
+        from sentence_transformers import SentenceTransformer
+        from transformers import AutoFeatureExtractor, AutoModel
+        import torch
+    except ImportError:
+        raise Warning("Optional dependency required! (pip install \"sliceguard[Embedding]\")")
+
+    return SentenceTransformer, AutoFeatureExtractor, AutoModel, torch
 
 
 def generate_text_embeddings(
@@ -19,6 +23,8 @@ def generate_text_embeddings(
     hf_num_proc=None,
     hf_batch_size=1,
 ):
+    SentenceTransformer, _, _, torch = get_embedding_imports()
+
     if hf_num_proc:
         print(
             "Warning: Multiprocessing cannot be used in generating text embeddings yet."
@@ -36,6 +42,9 @@ def generate_text_embeddings(
 
 def _extract_embeddings_images(model, feature_extractor, col_name="image"):
     """Utility to compute embeddings for images."""
+
+    _, _, _, torch = get_embedding_imports()
+
     device = model.device
 
     def pp(batch):
@@ -58,6 +67,8 @@ def generate_image_embeddings(
     hf_num_proc=None,
     hf_batch_size=1,
 ):
+
+    _, AutoFeatureExtractor, AutoModel, torch = get_embedding_imports()
     feature_extractor = AutoFeatureExtractor.from_pretrained(
         model_name, use_auth_token=hf_auth_token
     )
@@ -101,6 +112,9 @@ def generate_image_embeddings(
 
 def _extract_embeddings_audios(model, feature_extractor, col_name="audio"):
     """Utility to compute embeddings for audios."""
+
+    _, _, _, torch = get_embedding_imports()
+
     device = model.device
 
     def pp(batch):
@@ -132,6 +146,8 @@ def generate_audio_embeddings(
     hf_num_proc=None,
     hf_batch_size=1,
 ):
+    _, AutoFeatureExtractor, AutoModel, torch = get_embedding_imports()
+
     feature_extractor = AutoFeatureExtractor.from_pretrained(
         model_name, use_auth_token=hf_auth_token
     )

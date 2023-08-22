@@ -30,25 +30,4 @@ Go straight to our quickstart examples for your use case:
 
 
 ## 🗺️ Public Roadmap
-- [x] Detection of problematic data slices
-- [x] Basic explanation of found issues via feature importances
-- [x] Limited embedding computation for images, audio, text
-- [x] Extended embedding support, e.g., more embedding models and allow precomputed embeddings
-- [x] Speed up embedding computation using datasets library
-- [x] Improved issue detection algorithm, avoiding duplicate detections of similar problems and outliers influencing the segment detection
-- [x] Support application on datasets without labels (outlier based)
-- [x] Adaptive drop reference for datasets that contain a wide variety of data
-- [x] Large data support for detection and reporting, e.g., 500k audio samples with transcriptions
-- [x] Different interfaces from min_drop, min_support. Maybe n_slices and sort by criterion?
-- [x] Support application without model (by training simple baseline model)
-- [x] Improve normalization for mixed type runs e.g. embedding + one categorical or numeric variable.
-- [x] Walthroughs for unstructured, structured and mixed data. Also, in depth tutorial explaining all the parameters.
-- [ ] Soft Dependencies for embedding computation and autml as torch and xgboost dependencies are large
-- [ ] Allow for model comparisons via intersection, difference, ...
-- [ ] Robustify outlier detection algorithm. Probably better parameter choice.
-- [ ] Interpretable features for images, audio, text. E.g., dark image, quiet audio, long audio, contains common word x, ...
-- [ ] Generation of a summary report doing predefined checks
-- [ ] "Supervised" clustering that incorporates classes, probabilities, metrics, not only features
-- [ ] Data connectors for faster application on common data formats
-- [ ] Support embedding generation for remote resources, e.g. audio/images hosted on webservers
-- [ ] Improved explanations for found issues, e.g., via SHAP
+We maintain a **[public roadmap](ROADMAP.md)** so you can follow along the development of this library.

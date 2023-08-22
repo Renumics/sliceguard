@@ -1,6 +1,6 @@
 [project]
 name = "sliceguard"
-version = "0.0.14"
+version = "0.0.15"
 authors = [
   { name="Renumics GmbH", email="info@renumics.com"},
   { name="Daniel Klitzke", email="daniel.klitzke@renumics.com"}
@@ -14,7 +14,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-  "hnne >= 0.1.8",
+  "hnne >= 0.1.9",
   "numpy>=1.17.2",
   "pandas >= 2.0.0",
   "fairlearn >= 0.8.0",

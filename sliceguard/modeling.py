@@ -3,10 +3,14 @@ from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import LabelEncoder
 from typing import Literal
 
-try:
-    from flaml import AutoML
-except ImportError:
-    raise Warning("Optional dependency required! (pip install \"sliceguard[AutoML]\")")
+def get_automl_imports():
+    try:
+        from flaml import AutoML
+    except ImportError:
+        raise Warning("Optional dependency required! (pip install \"sliceguard[AutoML]\")")
+
+    return AutoML
+
 
 def fit_outlier_detection_model(encoded_data: np.array):
     clf = IsolationForest()
@@ -38,11 +42,15 @@ def fit_classification_regression_model(
         num_classes = None
         automl_metric = "mse"
 
+    AutoML = get_automl_imports()
+
     if split is not None:
+
         if train_split is not None:
             split_mask = split == train_split
 
             train_ys = encoded_ys[split_mask]
+
 
             automl = AutoML()
             automl.fit(

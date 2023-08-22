@@ -21,7 +21,7 @@ sg.report()
 ```
 
 It also allows for **interactive reporting and exploration** of found data issues using **[Renumics Spotlight](https://github.com/Renumics/spotlight)**:
-![Spotlight Report](static/img/bengaliai_spotlight.png)
+<img src="static/img/bengaliai_spotlight.png" alt="Spotlight Report" height="100px"/>
 
 ## ⏱️ Quickstart
 

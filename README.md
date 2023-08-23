@@ -28,9 +28,9 @@ Install sliceguard by running `pip install sliceguard`.
 
 Go straight to our quickstart examples for your use case:
 
-* 🖼️ **[Unstructured data (images, audio, text)](examples/quickstart_unstructured_data.ipynb)** **–** 🕹️ **[Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-unstructured-data)**
-* 📈 **[Structured data (numerical, categorical variables)](examples/quickstart_structured_data.ipynb)** **–** 🕹️ **[Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-structured-data)**
-* 📊 **[Mixed data (contains both)](examples/quickstart_mixed_data.ipynb)** **–** 🕹️ **[Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-mixed-data)**
+* 🖼️ **[Unstructured Data (Images, Audio, Text)](examples/quickstart_unstructured_data.ipynb)** **–** 🕹️ **[Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-unstructured-data)**
+* 📈 **[Structured Data (Numerical, Categorical Variables)](examples/quickstart_structured_data.ipynb)** **–** 🕹️ **[Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-structured-data)**
+* 📊 **[Mixed Data (Contains Both)](examples/quickstart_mixed_data.ipynb)** **–** 🕹️ **[Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-mixed-data)**
 
 ## 🔧 Use case-specific examples
 * 🗣️ **[Detecting issues in automatic speech recognition (ASR) models](examples/audio_issues_commonvoice_whisper.ipynb)**

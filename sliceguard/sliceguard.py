@@ -7,7 +7,7 @@ warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 
 # Real imports
 from uuid import uuid4
-from typing import List, Literal, Dict, Callable, Optional
+from typing import List, Literal, Dict, Callable, Optional, Tuple
 
 import pandas as pd
 import numpy as np
@@ -56,7 +56,7 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=20.0,
         automl_use_full_embeddings=False,
-    ):
+    ) -> None:
         """
         Function to generate an interactive report that allows limited interactive exploration and
         serves as starting point for detailed analysis in spotlight.
@@ -139,7 +139,7 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=20.0,
         automl_use_full_embeddings=False,
-    ):
+    ) -> dict:
         """
         Find slices that are classified badly by your model.
 
@@ -179,6 +179,14 @@ class SliceGuard:
         ):
             n_slices = 20
             criterion = "drop"
+        elif (
+            n_slices is not None
+            and criterion is None
+            and min_drop is None
+            and min_support is None
+        ):
+            criterion = "drop"
+
         else:
             if not (
                 (
@@ -193,9 +201,15 @@ class SliceGuard:
                     and n_slices is not None
                     and criterion is not None
                 )
+                or (
+                    min_drop is None
+                    and min_support is None
+                    and n_slices is not None
+                    and criterion is None
+                )
             ):
                 raise RuntimeError(
-                    "Invalid Configuration: Use either n_slices and criterion or min_drop and min_support!"
+                    "Invalid Configuration: Use either n_slices, n_slices + criterion or min_drop + min_support!"
                 )
 
         self._df = data  # safe that here to not modify original dataframe accidentally
@@ -331,7 +345,7 @@ class SliceGuard:
         host: str = "127.0.0.1",
         port: int = "auto",
         no_browser: bool = False,
-    ):
+    ) -> Tuple[pd.DataFrame, List[DataIssue]]:
         """
         Create an interactive report on the found issues in spotlight.
         :param spotlight_dtype: Define a datatype mapping for the interactive spotlight report. Will be passed to dtypes parameter of spotlight.show.

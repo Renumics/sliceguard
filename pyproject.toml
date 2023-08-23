@@ -1,6 +1,6 @@
 [project]
 name = "sliceguard"
-version = "0.0.15"
+version = "0.0.16"
 authors = [
   { name="Renumics GmbH", email="info@renumics.com"},
   { name="Daniel Klitzke", email="daniel.klitzke@renumics.com"}

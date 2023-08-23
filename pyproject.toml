@@ -38,7 +38,7 @@ embedding = [
   "torch >= 2.0.1",
   "datasets[audio,vision] >= 2.13.1",
 ]
-all = [
+complete = [
   "flaml >= 2.0.0",
   "xgboost >= 1.7.6",
   "transformers >= 4.30.2",

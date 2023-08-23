@@ -421,7 +421,7 @@ class SliceGuard:
 
             importance_strings = [
                 f"{x['column']}, ({x['importance']:.2f})"
-                for x in issue["explanation"]
+                for x in issue["explanation"][:3]
                 if ("column" in x and "importance" in x)
             ]
             if len(importance_strings) > 0:
@@ -431,7 +431,7 @@ class SliceGuard:
 
             predicate_strings = [
                 f"{x['minimum']:.1f}  < {x['column']} < {x['maximum']:.1f}"
-                for x in issue["explanation"]
+                for x in issue["explanation"][:3]
                 if ("minimum" in x and "maximum" in x)
             ]
 

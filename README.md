@@ -1,4 +1,4 @@
-<p align="center"><a href="https://github.com/Renumics/sliceguard"><img src="static/img/spotlight.svg" alt="Gray shape shifter" height="60"/></a></p>
+<p align="center"><a href="https://github.com/Renumics/sliceguard"><img src="https://github.com/Renumics/sliceguard/raw/main/static/img/spotlight.svg" alt="Spotlight Logo" height="60"/></a></p>
 <h1 align="center">sliceguard</h1>
 <p align="center">Detect problematic data slices in unstructured and structured data – fast.</p>
 
@@ -26,9 +26,9 @@ Install sliceguard by running `pip install sliceguard`.
 
 Go straight to our quickstart examples for your use case:
 
-* 🖼️ **[Unstructured Data (Images, Audio, Text)](examples/quickstart_unstructured_data.ipynb)** **–** **[🕹️ Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-unstructured-data)**
-* 📈 **[Structured Data (Numerical, Categorical Variables)](examples/quickstart_structured_data.ipynb)** **–** **[🕹️ Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-structured-data)**
-* 📊 **[Mixed Data (Contains Both)](examples/quickstart_mixed_data.ipynb)** **–** **[🕹️ Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-mixed-data)**
+* 🖼️ **[Unstructured Data (Images, Audio, Text)](https://github.com/Renumics/sliceguard/blob/main/examples/quickstart_unstructured_data.ipynb)** **–** **[🕹️ Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-unstructured-data)**
+* 📈 **[Structured Data (Numerical, Categorical Variables)](https://github.com/Renumics/sliceguard/blob/main/examples/quickstart_structured_data.ipynb)** **–** **[🕹️ Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-structured-data)**
+* 📊 **[Mixed Data (Contains Both)](https://github.com/Renumics/sliceguard/blob/main/examples/quickstart_mixed_data.ipynb)** **–** **[🕹️ Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-mixed-data)**
 
 ## 🗺️ Public Roadmap
-We maintain a **[public roadmap](ROADMAP.md)** so you can follow along the development of this library.
+We maintain a **[public roadmap](https://github.com/Renumics/sliceguard/blob/main/ROADMAP.md)** so you can follow along the development of this library.

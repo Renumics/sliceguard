@@ -415,17 +415,17 @@ class SliceGuard:
             # Note: Has to be row index not pandas index! Also note that the expression should be enough to filter out items that are not in the dataframe
             # because of downsampling. However, take care when changing something.
             issue_metric = issue["metric"]
-            issue_title = f"Metric: {issue_metric:.2f} – Cause: {issue['predicates'][0]['column']}"
+            issue_title = f"Metric: {issue_metric:.2f} | Cause: {issue['predicates'][0]['column']}"
 
             issue_explanation = ""
 
             importance_strings = [
-                f"{x['column']}, {x['importance']:.2f}"
+                f"{x['column']}, ({x['importance']:.2f})"
                 for x in issue["predicates"]
                 if ("column" in x and "importance" in x)
             ]
             if len(importance_strings) > 0:
-                issue_explanation += "Feature Importance:\n" + "; ".join(
+                issue_explanation += "Feature Importances: " + "; ".join(
                     importance_strings
                 )
 
@@ -436,7 +436,7 @@ class SliceGuard:
             ]
 
             if len(predicate_strings) > 0:
-                issue_explanation += "\n\nFeature Ranges:\n" + "; ".join(
+                issue_explanation += "\n\nFeature Ranges: " + "; ".join(
                     predicate_strings
                 )
 

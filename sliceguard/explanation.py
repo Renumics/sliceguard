@@ -103,6 +103,6 @@ def explain_clusters(features, feature_types, issues, df, prereduced_embeddings)
                 predicate["maximum"] = val.max()
             predicates_list.append(predicate)
 
-        issue["predicates"] = predicates_list
+        issue["explanation"] = predicates_list
 
     return issues

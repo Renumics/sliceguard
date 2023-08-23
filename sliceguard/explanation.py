@@ -93,7 +93,7 @@ def explain_clusters(features, feature_types, issues, df, prereduced_embeddings)
         # if f1 > 0.7: # only add explanation if it is succicient to classify cluster?
         importance_strings = []
         predicates_list = []
-        for f, i in zip(ordered_features[:3], ordered_importances[:3]):
+        for f, i in zip(ordered_features, ordered_importances):
             importance_strings.append(f"{f}, ({i:.2f})")
             feature_type = feature_types[f]
             predicate = {"column": f, "importance": i}

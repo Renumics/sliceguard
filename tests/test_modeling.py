@@ -1,9 +1,7 @@
 from sklearn.metrics import accuracy_score
 import datasets
 
-
 from sliceguard import SliceGuard
-
 
 def test_sliceguard_images():
     dataset = datasets.load_dataset("renumics/cifar100-enriched", split="all")

@@ -2,7 +2,18 @@ import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import LabelEncoder
 from typing import Literal
-from flaml import AutoML
+
+
+def get_automl_imports():
+    try:
+        from flaml import AutoML
+        import xgboost
+    except ImportError:
+        raise RuntimeError(
+            'Optional dependencies flaml and xgboost required! (run pip install "sliceguard[automl]")'
+        )
+
+    return AutoML
 
 
 def fit_outlier_detection_model(encoded_data: np.array):
@@ -34,6 +45,8 @@ def fit_classification_regression_model(
         encoded_ys = ys
         num_classes = None
         automl_metric = "mse"
+
+    AutoML = get_automl_imports()
 
     if split is not None:
         if train_split is not None:

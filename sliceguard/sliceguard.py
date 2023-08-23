@@ -179,6 +179,14 @@ class SliceGuard:
         ):
             n_slices = 20
             criterion = "drop"
+        elif (
+            n_slices is not None
+            and criterion is None
+            and min_drop is None
+            and min_support is None
+        ):
+            criterion = "drop"
+
         else:
             if not (
                 (
@@ -193,9 +201,15 @@ class SliceGuard:
                     and n_slices is not None
                     and criterion is not None
                 )
+                or (
+                    min_drop is None
+                    and min_support is None
+                    and n_slices is not None
+                    and criterion is None
+                )
             ):
                 raise RuntimeError(
-                    "Invalid Configuration: Use either n_slices and criterion or min_drop and min_support!"
+                    "Invalid Configuration: Use either n_slices, n_slices + criterion or min_drop + min_support!"
                 )
 
         self._df = data  # safe that here to not modify original dataframe accidentally

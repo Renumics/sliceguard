@@ -9,7 +9,7 @@
 
 ## 🚀 Introduction
 
-sliceguard is built to quickly **discover problematic data segments** in your data. It aims at supporting structured data as well as unstructured data like images, text or audio. However, it also tries to keep a **simple interface** hiding most of its functionality behind one simple *find_issues* function:
+Sliceguard helps you to quickly discover **problematic data segments**. It supports structured data as well as unstructured data like images, text or audio. Sliceguard generates an **interactive report** with just a few lines of code:
 
 ```python
 from sliceguard import SliceGuard
@@ -19,8 +19,6 @@ issues = sg.find_issues(df, features=["image"])
 
 sg.report()
 ```
-
-It also allows for **interactive reporting and exploration** of found data issues using **[Renumics Spotlight](https://github.com/Renumics/spotlight)**.
 
 ## ⏱️ Quickstart
 

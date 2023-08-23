@@ -158,6 +158,6 @@ def test_sliceguard_audio():
 
 
 if __name__ == "__main__":
-    test_sliceguard_text()
-    # test_sliceguard_images()
+    # test_sliceguard_text()
+    test_sliceguard_images()
     # test_sliceguard_audio()

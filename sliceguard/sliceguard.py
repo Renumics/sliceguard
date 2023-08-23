@@ -419,9 +419,11 @@ class SliceGuard:
 
             issue_explanation = ""
 
+            num_features_explanation = 3
+
             importance_strings = [
                 f"{x['column']}, ({x['importance']:.2f})"
-                for x in issue["explanation"][:3]
+                for x in issue["explanation"][:num_features_explanation]
                 if ("column" in x and "importance" in x)
             ]
             if len(importance_strings) > 0:
@@ -431,7 +433,7 @@ class SliceGuard:
 
             predicate_strings = [
                 f"{x['minimum']:.1f}  < {x['column']} < {x['maximum']:.1f}"
-                for x in issue["explanation"][:3]
+                for x in issue["explanation"][:num_features_explanation]
                 if ("minimum" in x and "maximum" in x)
             ]
 
@@ -449,7 +451,9 @@ class SliceGuard:
                 title=issue_title,
                 description=issue_explanation,
                 rows=issue_rows,
-                columns=[x["column"] for x in issue["explanation"]],
+                columns=[
+                    x["column"] for x in issue["explanation"][:num_features_explanation]
+                ],
             )
             data_issues.append(data_issue)
             data_issue_severity.append(issue_metric)

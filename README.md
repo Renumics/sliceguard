@@ -30,7 +30,7 @@ Go straight to our quickstart examples for your use case:
 
 * 🖼️ **[Unstructured data (images, audio, text)](examples/quickstart_unstructured_data.ipynb)**
 * 📈 **[Structured data (numerical, categorical variables)](examples/quickstart_structured_data.ipynb)**
-* 📊 **[Mixed data (contains both)](examples/quickstart_mixed_data.ipynb)** **[[Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-mixed-data)]**
+* 📊 **[Mixed data (contains both)](examples/quickstart_mixed_data.ipynb)** *[[Interactive Demo]](https://huggingface.co/spaces/renumics/sliceguard-mixed-data)*
 
 ## 🔧 Use case-specific examples
 * 🗣️ **[Detecting issues in automatic speech recognition (ASR) models](examples/audio_issues_commonvoice_whisper.ipynb)**

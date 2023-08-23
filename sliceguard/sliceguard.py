@@ -415,14 +415,30 @@ class SliceGuard:
             # Note: Has to be row index not pandas index! Also note that the expression should be enough to filter out items that are not in the dataframe
             # because of downsampling. However, take care when changing something.
             issue_metric = issue["metric"]
-            issue_title = f"{issue_metric:.2f} -> " + issue["explanation"]
+            issue_title = f"Metric: {issue_metric:.2f} | Cause: {issue['explanation'][0]['column']}"
+
+            issue_explanation = ""
+
+            importance_strings = [
+                f"{x['column']}, ({x['importance']:.2f})"
+                for x in issue["explanation"]
+                if ("column" in x and "importance" in x)
+            ]
+            if len(importance_strings) > 0:
+                issue_explanation += "Feature Importances: " + "; ".join(
+                    importance_strings
+                )
 
             predicate_strings = [
                 f"{x['minimum']:.1f}  < {x['column']} < {x['maximum']:.1f}"
-                for x in issue["predicates"]
+                for x in issue["explanation"]
                 if ("minimum" in x and "maximum" in x)
             ]
-            issue_explanation = "; ".join(predicate_strings)
+
+            if len(predicate_strings) > 0:
+                issue_explanation += "\n\nFeature Ranges: " + "; ".join(
+                    predicate_strings
+                )
 
             issue_rows = np.where(np.isin(selected_dataframe_rows, issue["rows"]))[
                 0
@@ -433,7 +449,7 @@ class SliceGuard:
                 title=issue_title,
                 description=issue_explanation,
                 rows=issue_rows,
-                columns=[x["column"] for x in issue["predicates"]],
+                columns=[x["column"] for x in issue["explanation"]],
             )
             data_issues.append(data_issue)
             data_issue_severity.append(issue_metric)

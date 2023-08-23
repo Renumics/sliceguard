@@ -7,7 +7,7 @@ warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 
 # Real imports
 from uuid import uuid4
-from typing import List, Literal, Dict, Callable, Optional
+from typing import List, Literal, Dict, Callable, Optional, Tuple
 
 import pandas as pd
 import numpy as np
@@ -56,7 +56,7 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=20.0,
         automl_use_full_embeddings=False,
-    ):
+    ) -> None:
         """
         Function to generate an interactive report that allows limited interactive exploration and
         serves as starting point for detailed analysis in spotlight.
@@ -139,7 +139,7 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=20.0,
         automl_use_full_embeddings=False,
-    ):
+    ) -> dict:
         """
         Find slices that are classified badly by your model.
 
@@ -345,7 +345,7 @@ class SliceGuard:
         host: str = "127.0.0.1",
         port: int = "auto",
         no_browser: bool = False,
-    ):
+    ) -> Tuple[pd.DataFrame, List[DataIssue]]:
         """
         Create an interactive report on the found issues in spotlight.
         :param spotlight_dtype: Define a datatype mapping for the interactive spotlight report. Will be passed to dtypes parameter of spotlight.show.

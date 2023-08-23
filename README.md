@@ -32,11 +32,5 @@ Go straight to our quickstart examples for your use case:
 * 📈 **[Structured Data (Numerical, Categorical Variables)](examples/quickstart_structured_data.ipynb)** **–** **[🕹️ Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-structured-data)**
 * 📊 **[Mixed Data (Contains Both)](examples/quickstart_mixed_data.ipynb)** **–** **[🕹️ Interactive Demo](https://huggingface.co/spaces/renumics/sliceguard-mixed-data)**
 
-## 🔧 Use case-specific examples
-* 🗣️ **[Detecting issues in automatic speech recognition (ASR) models](examples/audio_issues_commonvoice_whisper.ipynb)**
-* 🛠️ **[Detecting issues in audio datasets (condition monitoring)](examples/audio_issues_condition_monitoring_dcase.ipynb)**
-* 🌆 **[Selecting the best (and worst) generated images of Stable Diffusion](examples/stable_diffusion_evaluation.ipynb)**
-
-
 ## 🗺️ Public Roadmap
 We maintain a **[public roadmap](ROADMAP.md)** so you can follow along the development of this library.

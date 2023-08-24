@@ -7,6 +7,8 @@
  	<a href="https://pypi.org/project/sliceguard/"><img src="https://img.shields.io/pypi/wheel/sliceguard" height="20"/></a>
 </p>
 
+<p align="center"><img src="https://github.com/Renumics/sliceguard/raw/main/static/img/sliceguard_github.gif" width="100%"/><img src="https://github.com/Renumics/sliceguard/raw/main/static/img/dropshadow.png" width="100%"/></p>
+
 ## 🚀 Introduction
 
 Sliceguard helps you to quickly discover **problematic data segments**. It supports structured data as well as unstructured data like images, text or audio. Sliceguard generates an **interactive report** with just a few lines of code:

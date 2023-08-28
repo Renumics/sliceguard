@@ -46,6 +46,10 @@ all = [
   "torch >= 2.0.1",
   "datasets[audio,vision]>= 2.13.1",
 ]
+docs = [
+    "sphinx",
+    "myst-parser",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/Renumics/sliceguard"

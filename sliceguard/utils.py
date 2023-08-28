@@ -181,34 +181,56 @@ def encode_normalize_features(
                     print(
                         f"Using default model for computing embeddings for feature {col}."
                     )
-            # Set first entry as for checking type of raw data.
-            if col in df.columns:
-                first_entry = df[col].iloc[0]
+
+            # Try to infer the type of the raw data. Note: Cannot handle missing values yet.
             if col in precomputed_embeddings:  # use precomputed embeddings when given
+                print("Using precomputed embeddings.")
                 embeddings = precomputed_embeddings[col]
                 assert len(embeddings) == len(df)
                 raw_embeddings[
                     col
                 ] = embeddings  # also save them here as they are used in report
-            elif first_entry.lower().endswith(".wav") or first_entry.lower().endswith(
-                ".mp3"
+            elif all(
+                [
+                    s is not None
+                    and (s.lower().endswith(".wav") or s.lower().endswith(".mp3"))
+                    for s in df[col]
+                ]
             ):  # TODO: Improve data type inference for raw data
+                print("Computing audio embeddings.")
                 embeddings = generate_audio_embeddings(
                     df[col].values, **hf_model_params
                 )
                 raw_embeddings[col] = embeddings
-            elif (
-                first_entry.lower().endswith(".jpg")
-                or first_entry.lower().endswith(".jpeg")
-                or first_entry.lower().endswith(".png")
+            elif all(
+                [
+                    s is not None
+                    and (
+                        s.lower().endswith(".jpg")
+                        or s.lower().endswith(".jpeg")
+                        or s.lower().endswith(".png")
+                        or s.lower().endswith(".gif")
+                    )
+                    for s in df[col]
+                ]
             ):
+                print("Computing image embeddings.")
                 embeddings = generate_image_embeddings(
                     df[col].values, **hf_model_params
                 )
                 raw_embeddings[col] = embeddings
-            else:  # Treat as text if nothing known
+            elif all(
+                [s is not None for s in df[col]]
+            ):  # Treat as text if nothing known
+                print(
+                    f"Warning: Computing text embeddings. If the column {col} is a path to some file it is probably not supported yet!"
+                )
                 embeddings = generate_text_embeddings(df[col].values, **hf_model_params)
                 raw_embeddings[col] = embeddings
+            else:
+                raise RuntimeError(
+                    f"Could not compute embeddings for column {col}. Probably contains missing values? Remove manually!"
+                )
 
             # TODO: Potentially filter out entries without valid embedding or replace with mean?
             is_all_embeddings = all(

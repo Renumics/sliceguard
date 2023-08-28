@@ -84,11 +84,19 @@ def infer_feature_types(
                 "embedding",
             )
             feature_types[col] = given_feature_types[col]
-            if col in given_feature_orders:
-                if feature_types == "ordinal":
-                    feature_orders[col] = given_feature_orders[col]
-                else:
-                    print(f"Warning: Order given for non-ordinal feature {col}.")
+
+        # Do some checks after inference
+        # Warn if order given for non-ordinal feature.
+        if col in given_feature_orders:
+            if feature_types[col] == "ordinal":
+                feature_orders[col] = given_feature_orders[col]
+            else:
+                print(f"Warning: Order given for non-ordinal feature {col}.")
+        # Fail if no order given for explicitely set ordinal feature.
+        if feature_types[col] == "ordinal" and not col in feature_orders:
+            raise RuntimeError(
+                f"You didn't specify an order for ordinal feature {col}. Use feature_orders parameter."
+            )
 
     return feature_types, feature_orders
 

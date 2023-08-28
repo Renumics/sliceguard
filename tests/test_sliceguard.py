@@ -34,7 +34,7 @@ def test_sliceguard_text():
 
     df["age"] = pd.Categorical(
         df["age"].values,
-        # ordered=True,
+        ordered=True,
         categories=[
             "teens",
             "twenties",

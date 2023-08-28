@@ -549,8 +549,8 @@ class SliceGuard:
         df = data  # just rename the variable for shorter naming
 
         # Try to infer the column dtypes
-        feature_types = infer_feature_types(
-            features, feature_types, precomputed_embeddings, df
+        feature_types, feature_orders = infer_feature_types(
+            features, feature_types, feature_orders, precomputed_embeddings, df
         )
 
         # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant

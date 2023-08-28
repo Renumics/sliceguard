@@ -19,6 +19,7 @@ def infer_feature_types(
     given_feature_types: Dict[
         str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
     ],
+    given_feature_orders: Dict[str, list],
     precomputed_embeddings: Dict[str, np.array],
     df: pd.DataFrame,
 ):
@@ -30,6 +31,7 @@ def infer_feature_types(
     """
 
     feature_types = {}
+    feature_orders = {}
     for col in features:
         # check if the column is supplied in precomputed embeddings, then always use embedding feature type
         if col in precomputed_embeddings:
@@ -38,7 +40,13 @@ def infer_feature_types(
 
         col_dtype = df[col].dtype
 
-        if col_dtype == "object" and col not in given_feature_types:
+        if (
+            col_dtype == "object"
+            or (
+                (col_dtype == "category" or isinstance(col_dtype, pd.CategoricalDtype))
+                and df[col].cat.ordered != True
+            )
+        ) and col not in given_feature_types:
             num_unique_values = len(df[col].unique())
             if num_unique_values / len(df) > 0.5:
                 print(
@@ -47,9 +55,21 @@ def infer_feature_types(
                 feature_types[col] = "raw"
             else:
                 print(
-                    f"Feature {col} was inferred as being categorical. Will be treated as nominal by default. If ordinal specify in feature_types and feature_orders!"
+                    f"Feature {col} was inferred as being categorical. Will be treated as nominal by default. If ordinal specify in feature_types and feature_orders or use Pandas categoricals!"
                 )
                 feature_types[col] = "nominal"
+        elif (
+            (isinstance(col_dtype, pd.CategoricalDtype) or col_dtype == "category")
+            and df[col].cat.ordered == True
+            and col not in given_feature_types
+        ):
+            print(f"Feature {col} was inferred as being ordinal (pandas dtype).")
+            feature_types[col] = "ordinal"
+            if col not in given_feature_orders:
+                feature_orders[col] = list(df[col].cat.categories)
+            else:
+                feature_orders[col] = given_feature_orders[col]
+            print(f"Using order {feature_orders[col]}.")
         elif col not in given_feature_types:
             print(
                 f"Feature {col} will be treated as numerical value. You can override this by specifying feature_types."
@@ -64,7 +84,13 @@ def infer_feature_types(
                 "embedding",
             )
             feature_types[col] = given_feature_types[col]
-    return feature_types
+            if col in given_feature_orders:
+                if feature_types == "ordinal":
+                    feature_orders[col] = given_feature_orders[col]
+                else:
+                    print(f"Warning: Order given for non-ordinal feature {col}.")
+
+    return feature_types, feature_orders
 
 
 def encode_normalize_features(

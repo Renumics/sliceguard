@@ -11,7 +11,7 @@ def get_embedding_imports():
         from sentence_transformers import SentenceTransformer
         from transformers import AutoFeatureExtractor, AutoModel
         import torch
-        import torchaudio # Used in AST which is default model of sliceguard
+        import torchaudio  # Used in AST which is default model of sliceguard
     except ImportError:
         raise Warning(
             'Optional dependency required! (pip install "sliceguard[embedding]")'

@@ -94,11 +94,16 @@ def fit_classification_regression_model(
             time_budget=time_budget,
         )
 
-    y_preds_raw = automl.predict(encoded_data)
-    y_preds = (
-        label_encoder.inverse_transform(y_preds_raw)
-        if task == "classification"
-        else y_preds_raw
-    )
+    if task == "classification":
+        y_probs = automl.predict_proba(encoded_data)
+        y_preds_raw = np.argmax(y_probs, axis=1)
+        y_preds = label_encoder.inverse_transform(y_preds_raw)
+        classes = label_encoder.classes_
+    elif task == "regression":
+        y_preds = automl.predict(encoded_data)
+        y_probs = None
+        classes = None
+    else:
+        raise RuntimeError("Could not run inference. Not valid task given.")
 
-    return y_preds
+    return y_preds, y_probs, classes

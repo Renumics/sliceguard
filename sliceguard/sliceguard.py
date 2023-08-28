@@ -479,6 +479,10 @@ class SliceGuard:
         if hasattr(self, "_generated_y_pred"):
             df["sg_y_pred"] = self._generated_y_pred[selected_dataframe_rows]
 
+        if hasattr(self, "_generated_y_probs") and hasattr(self, "_classes"):
+            for class_idx, label in enumerate(self._classes):
+                df[f"sg_p_{label}"] = self._generated_y_probs[:, class_idx].tolist()
+
         issue_list = np.array(data_issues)[data_issue_order].tolist()
 
         if not no_browser:
@@ -620,7 +624,7 @@ class SliceGuard:
                 for v in raw_embeddings.values():
                     X_data.append(v)
 
-            y_preds = fit_classification_regression_model(
+            y_preds, y_probs, classes = fit_classification_regression_model(
                 encoded_data=np.concatenate(X_data, axis=1)
                 if automl_use_full_embeddings
                 else encoded_data,
@@ -635,6 +639,10 @@ class SliceGuard:
 
             df[y_pred] = y_preds
 
+            if classes is not None:
+                self._classes = classes
+            if y_probs is not None:
+                self._generated_y_probs = y_probs
             self._generated_y_pred = df[y_pred].values
 
         # Perform detection of problematic clusters based on the given features

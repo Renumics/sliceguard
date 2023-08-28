@@ -32,37 +32,52 @@ def test_sliceguard_text():
     df = df[df["age"] != ""]
     df = df[df["gender"] != ""]
 
+    df["age"] = pd.Categorical(
+        df["age"].values,
+        ordered=True,
+        categories=[
+            "teens",
+            "twenties",
+            "thirties",
+            "fourties",
+            "fifties",
+            "sixties",
+            "seventies",
+            "eighties",
+            "nineties",
+        ],
+    )
+
+    # df["gender"] = df["gender"].astype("category")
+    # df["accent"] = df["accent"].astype("category")
+
     df["audio"] = "tests/" + df["audio"]
 
     sg = SliceGuard()
     issue_df = sg.find_issues(
         df.sample(200),
-        ["accent", "sentence"],
+        ["accent", "age", "sentence"],
         "sentence",
         "prediction",
         wer_metric,
         metric_mode="min",
-        feature_types={"age": "ordinal"},
-        feature_orders={
-            "age": [
-                "teens",
-                "twenties",
-                "thirties",
-                "fourties",
-                "fifties",
-                "sixties",
-                "seventies",
-                "eighties",
-                "nineties",
-            ]
-        },
+        # feature_types={"age": "ordinal"},
+        # feature_orders={
+        #     "age": [
+        #         "teens",
+        #         "twenties",
+        #         "thirties",
+        #         "fourties",
+        #         "fifties",
+        #         "sixties",
+        #         "seventies",
+        #         "eighties",
+        #         "nineties",
+        #     ]
+        # },
         # min_support=30,
         # min_drop=0.04,
     )
-
-    # df["age"] = df["age"].astype("category")
-    # df["gender"] = df["gender"].astype("category")
-    # df["accent"] = df["accent"].astype("category")
 
     # sg.report(spotlight_dtype={"audio": Audio})
 
@@ -158,6 +173,7 @@ def test_sliceguard_audio():
 
 
 if __name__ == "__main__":
+    test_sliceguard_text()
     # test_sliceguard_text()
-    test_sliceguard_images()
+    # test_sliceguard_images()
     # test_sliceguard_audio()

@@ -192,7 +192,7 @@ def encode_normalize_features(
                 ] = embeddings  # also save them here as they are used in report
             elif all(
                 [
-                    s is not None
+                    pd.notnull(s)
                     and (s.lower().endswith(".wav") or s.lower().endswith(".mp3"))
                     for s in df[col]
                 ]
@@ -204,7 +204,7 @@ def encode_normalize_features(
                 raw_embeddings[col] = embeddings
             elif all(
                 [
-                    s is not None
+                    pd.notnull(s)
                     and (
                         s.lower().endswith(".jpg")
                         or s.lower().endswith(".jpeg")
@@ -220,7 +220,7 @@ def encode_normalize_features(
                 )
                 raw_embeddings[col] = embeddings
             elif all(
-                [s is not None for s in df[col]]
+                [pd.notnull(s) for s in df[col]]
             ):  # Treat as text if nothing known
                 print(
                     f"Warning: Computing text embeddings. If the column {col} is a path to some file it is probably not supported yet!"

@@ -7,7 +7,7 @@ warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 
 # Real imports
 from uuid import uuid4
-from typing import List, Literal, Dict, Callable, Optional
+from typing import List, Literal, Dict, Callable, Optional, Tuple
 
 import pandas as pd
 import numpy as np
@@ -56,7 +56,7 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=20.0,
         automl_use_full_embeddings=False,
-    ):
+    ) -> None:
         """
         Function to generate an interactive report that allows limited interactive exploration and
         serves as starting point for detailed analysis in spotlight.
@@ -139,7 +139,7 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=20.0,
         automl_use_full_embeddings=False,
-    ):
+    ) -> dict:
         """
         Find slices that are classified badly by your model.
 
@@ -179,6 +179,14 @@ class SliceGuard:
         ):
             n_slices = 20
             criterion = "drop"
+        elif (
+            n_slices is not None
+            and criterion is None
+            and min_drop is None
+            and min_support is None
+        ):
+            criterion = "drop"
+
         else:
             if not (
                 (
@@ -193,9 +201,15 @@ class SliceGuard:
                     and n_slices is not None
                     and criterion is not None
                 )
+                or (
+                    min_drop is None
+                    and min_support is None
+                    and n_slices is not None
+                    and criterion is None
+                )
             ):
                 raise RuntimeError(
-                    "Invalid Configuration: Use either n_slices and criterion or min_drop and min_support!"
+                    "Invalid Configuration: Use either n_slices, n_slices + criterion or min_drop + min_support!"
                 )
 
         self._df = data  # safe that here to not modify original dataframe accidentally
@@ -331,7 +345,7 @@ class SliceGuard:
         host: str = "127.0.0.1",
         port: int = "auto",
         no_browser: bool = False,
-    ):
+    ) -> Tuple[pd.DataFrame, List[DataIssue]]:
         """
         Create an interactive report on the found issues in spotlight.
         :param spotlight_dtype: Define a datatype mapping for the interactive spotlight report. Will be passed to dtypes parameter of spotlight.show.
@@ -415,14 +429,32 @@ class SliceGuard:
             # Note: Has to be row index not pandas index! Also note that the expression should be enough to filter out items that are not in the dataframe
             # because of downsampling. However, take care when changing something.
             issue_metric = issue["metric"]
-            issue_title = f"{issue_metric:.2f} -> " + issue["explanation"]
+            issue_title = f"Metric: {issue_metric:.2f} | Cause: {issue['explanation'][0]['column']}"
+
+            issue_explanation = ""
+
+            num_features_explanation = 3
+
+            importance_strings = [
+                f"{x['column']}, ({x['importance']:.2f})"
+                for x in issue["explanation"][:num_features_explanation]
+                if ("column" in x and "importance" in x)
+            ]
+            if len(importance_strings) > 0:
+                issue_explanation += "Feature Importances: " + "; ".join(
+                    importance_strings
+                )
 
             predicate_strings = [
                 f"{x['minimum']:.1f}  < {x['column']} < {x['maximum']:.1f}"
-                for x in issue["predicates"]
+                for x in issue["explanation"][:num_features_explanation]
                 if ("minimum" in x and "maximum" in x)
             ]
-            issue_explanation = "; ".join(predicate_strings)
+
+            if len(predicate_strings) > 0:
+                issue_explanation += "\n\nFeature Ranges: " + "; ".join(
+                    predicate_strings
+                )
 
             issue_rows = np.where(np.isin(selected_dataframe_rows, issue["rows"]))[
                 0
@@ -433,7 +465,9 @@ class SliceGuard:
                 title=issue_title,
                 description=issue_explanation,
                 rows=issue_rows,
-                columns=[x["column"] for x in issue["predicates"]],
+                columns=[
+                    x["column"] for x in issue["explanation"][:num_features_explanation]
+                ],
             )
             data_issues.append(data_issue)
             data_issue_severity.append(issue_metric)
@@ -444,6 +478,10 @@ class SliceGuard:
 
         if hasattr(self, "_generated_y_pred"):
             df["sg_y_pred"] = self._generated_y_pred[selected_dataframe_rows]
+
+        if hasattr(self, "_generated_y_probs") and hasattr(self, "_classes"):
+            for class_idx, label in enumerate(self._classes):
+                df[f"sg_p_{label}"] = self._generated_y_probs[:, class_idx].tolist()
 
         issue_list = np.array(data_issues)[data_issue_order].tolist()
 
@@ -515,8 +553,8 @@ class SliceGuard:
         df = data  # just rename the variable for shorter naming
 
         # Try to infer the column dtypes
-        feature_types = infer_feature_types(
-            features, feature_types, precomputed_embeddings, df
+        feature_types, feature_orders = infer_feature_types(
+            features, feature_types, feature_orders, precomputed_embeddings, df
         )
 
         # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant
@@ -586,7 +624,7 @@ class SliceGuard:
                 for v in raw_embeddings.values():
                     X_data.append(v)
 
-            y_preds = fit_classification_regression_model(
+            y_preds, y_probs, classes = fit_classification_regression_model(
                 encoded_data=np.concatenate(X_data, axis=1)
                 if automl_use_full_embeddings
                 else encoded_data,
@@ -601,6 +639,10 @@ class SliceGuard:
 
             df[y_pred] = y_preds
 
+            if classes is not None:
+                self._classes = classes
+            if y_probs is not None:
+                self._generated_y_probs = y_probs
             self._generated_y_pred = df[y_pred].values
 
         # Perform detection of problematic clusters based on the given features

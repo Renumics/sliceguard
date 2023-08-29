@@ -19,6 +19,7 @@ def infer_feature_types(
     given_feature_types: Dict[
         str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
     ],
+    given_feature_orders: Dict[str, list],
     precomputed_embeddings: Dict[str, np.array],
     df: pd.DataFrame,
 ):
@@ -30,6 +31,7 @@ def infer_feature_types(
     """
 
     feature_types = {}
+    feature_orders = {}
     for col in features:
         # check if the column is supplied in precomputed embeddings, then always use embedding feature type
         if col in precomputed_embeddings:
@@ -38,7 +40,13 @@ def infer_feature_types(
 
         col_dtype = df[col].dtype
 
-        if col_dtype == "object" and col not in given_feature_types:
+        if (
+            col_dtype == "object"
+            or (
+                (col_dtype == "category" or isinstance(col_dtype, pd.CategoricalDtype))
+                and df[col].cat.ordered != True
+            )
+        ) and col not in given_feature_types:
             num_unique_values = len(df[col].unique())
             if num_unique_values / len(df) > 0.5:
                 print(
@@ -47,9 +55,21 @@ def infer_feature_types(
                 feature_types[col] = "raw"
             else:
                 print(
-                    f"Feature {col} was inferred as being categorical. Will be treated as nominal by default. If ordinal specify in feature_types and feature_orders!"
+                    f"Feature {col} was inferred as being categorical. Will be treated as nominal by default. If ordinal specify in feature_types and feature_orders or use Pandas categoricals!"
                 )
                 feature_types[col] = "nominal"
+        elif (
+            (isinstance(col_dtype, pd.CategoricalDtype) or col_dtype == "category")
+            and df[col].cat.ordered == True
+            and col not in given_feature_types
+        ):
+            print(f"Feature {col} was inferred as being ordinal (pandas dtype).")
+            feature_types[col] = "ordinal"
+            if col not in given_feature_orders:
+                feature_orders[col] = list(df[col].cat.categories)
+            else:
+                feature_orders[col] = given_feature_orders[col]
+            print(f"Using order {feature_orders[col]}.")
         elif col not in given_feature_types:
             print(
                 f"Feature {col} will be treated as numerical value. You can override this by specifying feature_types."
@@ -64,7 +84,21 @@ def infer_feature_types(
                 "embedding",
             )
             feature_types[col] = given_feature_types[col]
-    return feature_types
+
+        # Do some checks after inference
+        # Warn if order given for non-ordinal feature.
+        if col in given_feature_orders:
+            if feature_types[col] == "ordinal":
+                feature_orders[col] = given_feature_orders[col]
+            else:
+                print(f"Warning: Order given for non-ordinal feature {col}.")
+        # Fail if no order given for explicitely set ordinal feature.
+        if feature_types[col] == "ordinal" and not col in feature_orders:
+            raise RuntimeError(
+                f"You didn't specify an order for ordinal feature {col}. Use feature_orders parameter."
+            )
+
+    return feature_types, feature_orders
 
 
 def encode_normalize_features(
@@ -147,34 +181,56 @@ def encode_normalize_features(
                     print(
                         f"Using default model for computing embeddings for feature {col}."
                     )
-            # Set first entry as for checking type of raw data.
-            if col in df.columns:
-                first_entry = df[col].iloc[0]
+
+            # Try to infer the type of the raw data. Note: Cannot handle missing values yet.
             if col in precomputed_embeddings:  # use precomputed embeddings when given
+                print("Using precomputed embeddings.")
                 embeddings = precomputed_embeddings[col]
                 assert len(embeddings) == len(df)
                 raw_embeddings[
                     col
                 ] = embeddings  # also save them here as they are used in report
-            elif first_entry.lower().endswith(".wav") or first_entry.lower().endswith(
-                ".mp3"
+            elif all(
+                [
+                    pd.notnull(s)
+                    and (s.lower().endswith(".wav") or s.lower().endswith(".mp3"))
+                    for s in df[col]
+                ]
             ):  # TODO: Improve data type inference for raw data
+                print("Computing audio embeddings.")
                 embeddings = generate_audio_embeddings(
                     df[col].values, **hf_model_params
                 )
                 raw_embeddings[col] = embeddings
-            elif (
-                first_entry.lower().endswith(".jpg")
-                or first_entry.lower().endswith(".jpeg")
-                or first_entry.lower().endswith(".png")
+            elif all(
+                [
+                    pd.notnull(s)
+                    and (
+                        s.lower().endswith(".jpg")
+                        or s.lower().endswith(".jpeg")
+                        or s.lower().endswith(".png")
+                        or s.lower().endswith(".gif")
+                    )
+                    for s in df[col]
+                ]
             ):
+                print("Computing image embeddings.")
                 embeddings = generate_image_embeddings(
                     df[col].values, **hf_model_params
                 )
                 raw_embeddings[col] = embeddings
-            else:  # Treat as text if nothing known
+            elif all(
+                [pd.notnull(s) for s in df[col]]
+            ):  # Treat as text if nothing known
+                print(
+                    f"Warning: Computing text embeddings. If the column {col} is a path to some file it is probably not supported yet!"
+                )
                 embeddings = generate_text_embeddings(df[col].values, **hf_model_params)
                 raw_embeddings[col] = embeddings
+            else:
+                raise RuntimeError(
+                    f"Could not compute embeddings for column {col}. Probably contains missing values? Remove manually!"
+                )
 
             # TODO: Potentially filter out entries without valid embedding or replace with mean?
             is_all_embeddings = all(

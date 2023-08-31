@@ -17,6 +17,7 @@
 - [ ] Allow application of sliceguard on timeseries
 - [ ] Add Sliceguard deepdive notebook to show more advanced usage
 - [ ] Build sphinx docs
+- [ ] Stronger automated testing
 - [ ] Robustify outlier detection algorithm. Probably better parameter choice.
 - [ ] Interpretable features for images, audio, text. E.g., dark image, quiet audio, long audio, contains common word x, ...
 - [ ] Generation of a summary report doing predefined checks

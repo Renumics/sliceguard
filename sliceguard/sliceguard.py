@@ -139,7 +139,7 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=20.0,
         automl_use_full_embeddings=False,
-    ) -> dict:
+    ) -> List(dict):
         """
         Find slices that are classified badly by your model.
 
@@ -177,6 +177,7 @@ class SliceGuard:
             If not supplied using crossvalidation.
         :param automl_time_budget: The time budget used by sliceguard for training a model.
         :param automl_use_full_embeddings: Wether to use the raw embeddings instead of the pre-reduced ones when training a model. Can potentially improve performance.
+        :rtype: List of issues, represented as python dicts.
         """
 
         # Validate if there is invalid configuration of slice return config
@@ -354,7 +355,7 @@ class SliceGuard:
         host: str = "127.0.0.1",
         port: int = "auto",
         no_browser: bool = False,
-    ) -> Tuple[pd.DataFrame, List[DataIssue]]:
+    ) -> Tuple[pd.DataFrame, List[DataIssue], Dict[spotlight.dtypes.base.DType]]:
         """
         Create an interactive report on the found issues in spotlight.
 
@@ -364,6 +365,7 @@ class SliceGuard:
         :param host: The host spotlight should be started on. Default is 127.0.0.1.
         :param port: The port spotlight should be started on. Default is "auto".
         :param no_browser: Do not start spotlight but just return the dataframe and issues. Useful for programmatic issue evaluation.
+        :rtype: Tuple in the format (enriched dataframe, list of spotlight DataIssues, spotlight datatype mapping dict).
         """
         # Some basic checks
         assert self._issues is not None
@@ -498,10 +500,12 @@ class SliceGuard:
 
         issue_list = np.array(data_issues)[data_issue_order].tolist()
 
+        dtypes = {**spotlight_dtype, **embedding_dtypes}
+
         if not no_browser:
             spotlight.show(
                 df,
-                dtype={**spotlight_dtype, **embedding_dtypes},
+                dtype=dtypes,
                 host=host,
                 port=port,
                 issues=issue_list,
@@ -523,6 +527,7 @@ class SliceGuard:
         return (
             df,
             issue_list,
+            dtypes,
         )  # Return the create report dataframe in case caller wants to process it
 
     def _prepare_data(

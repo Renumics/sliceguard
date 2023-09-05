@@ -1,7 +1,6 @@
-sliceguard
-==========
+sliceguard API
+==============
 
-.. toctree::
-   :maxdepth: 4
-
-   sliceguard
+.. autoclass:: sliceguard.sliceguard.SliceGuard
+    :members:
+    :exclude-members: show

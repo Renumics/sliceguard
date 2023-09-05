@@ -144,30 +144,39 @@ class SliceGuard:
         Find slices that are classified badly by your model.
 
         :param data: A pandas dataframe containing your data.
-        :param features: A list of columns that contains features to feed into your model but also metadata.
-        :param y: The column containing the ground-truth label.
-        :param y_pred: The column containing your models prediction.
+        :param features: A list of feature column names sliceguard should use for for identifying problematic data clusters.
+        :param y: Name of the dataframe column containing your ground-truth labels.
+        :param y_pred: Name of the dataframe column containing your model's predictions.
         :param metric: A callable metric function that must correspond to the form metric(y_true, y_pred) -> scikit-learn style.
-        :param min_support: Minimum support for clusters that are listed as issues. If you are more looking towards outliers choose small values, if you target biases choose higher values.
-        :param min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
-        :param n_slices: Number of slices to return for review. Alternative interface to min_drop and min_support.
+        :param min_support: Minimum support for a cluster to be listed as an issue (together with min_drop).
+        :param min_drop: Minimum metric drop for a cluster to be listed as an issue (together with min_support).
+        :param n_slices: Number of problematic clusters find_issues should return after sorting them by a criterion specified by the "criterion" parameter.
         :param criterion: Criterion after which the slices get sorted when using n_slices. One of drop, support or drop*support.
-        :param metric_mode: What do you optimize your metric for? max is the right choice for accuracy while e.g. min is good for regression error.
-        :param drop_reference: Determines what is the reference value for the drop. Overall is the metric on the whole dataset, parent is the parent cluster.
-        :param remove_outliers: Account for outliers that disturb cluster detection.
-        :param feature_types: Specify how your feature should be treated in encoding and normalizing.
-        :param feature_orders: If your feature is ordinal, specify the order of that should be used for encoding. This is required for EVERY ordinal feature.
-        :param precomputed_embeddings: Supply precomputed embeddings for raw columns. E.g. if repeatedly running checks on your data.
-        :param embedding_models: Supply embedding models that should be used to compute embedding vectors from raw data.
-        :param embedding_weight: Lower the influence of embedding values in mixed inferences by setting it lower than 1.0.
+        :param metric_mode: Optimization goal for your metric. max is the right choice for accuracy while e.g. min is good for regression error.
+        :param drop_reference: Reference value for calculating the drop for a cluster. Default is "overall" which calculates the difference to the overall metric.
+                "parent" will calculate the drop relative to each clusters parent cluster. Use the second option for getting more diverse results,
+                e.g., getting problematic clusters in each class when dealing with image classification instead of focussing on the most difficult class.
+        :param remove_outliers: Filter metric outliers in identified clusters. Especially useful if metric is unbounded and can heavily
+            distort a clusters overall metric. Will be significantly more computationally expensive.
+        :param feature_types: Specify the types of your features if sliceguard doesn't detect them properly. Can be "nominal", "ordinal", "numerical" for scalar values.
+            Can be "raw" for filepaths to unstructured data. Can be "embedding" for embedding vectors.
+        :param feature_orders: Specify the order of ordinal feature values that should be used for encoding. This is required for EVERY ordinal feature
+            that is not specified by pandas categorical ordered datatypes.
+        :param precomputed_embeddings: Supply precomputed embeddings for raw columns. Form should be precomputed_embeddings={"image": image_embeddings}.
+            This is especially useful if you run repeated checks on your data and you want to compute embeddings only once.
+        :param embedding_models: Supply huggingface model identifiers used for computing embeddings on specific columns.
+            Form should be embedding_models={"image": "google/vit-base-patch16-224"}.
+        :param embedding_weights: Specify how much each computed embedding is weighted in the cluster search. Useful to lower the influence of an embedding
+            by setting the parameter lower than 1.0.
         :param hf_auth_token: The authentification token used to download embedding models from the huggingface hub.
-        :param hf_num_proc: Multiprocessing used in audio/image preprocessing.
-        :param hf_batch_size: Batch size used in computing embeddings.
-        :param automl_task: The task specification for training an own model. Has to be one of classification or regression.
-        :param automl_split_key: Column used for splitting the data.
-        :param automl_train_split: The value used for marking the train split. If supplied, rest of data will be used as validation set. If not supplied using crossvalidation.
-        :param automl_time_budget: The time budget used for training an own model.
-        :param automl_use_full_embeddings: Wether to use the raw embeddings instead of the pre-reduced ones when training a model.
+        :param hf_num_proc: Number of processes used in embedding computation.
+        :param hf_batch_size: Batch size used for embedding computation.
+        :param automl_task: The task specification for training a model. Has to be one of classification or regression. Used when only supplying labels.
+        :param automl_split_key: Name of column used for splitting the data when sliceguard trains a model.
+        :param automl_train_split: The value used for marking the train split when sliceguard trains a model. If supplied, rest of data will be used as validation set.
+            If not supplied using crossvalidation.
+        :param automl_time_budget: The time budget used by sliceguard for training a model.
+        :param automl_use_full_embeddings: Wether to use the raw embeddings instead of the pre-reduced ones when training a model. Can potentially improve performance.
         """
 
         # Validate if there is invalid configuration of slice return config
@@ -348,9 +357,13 @@ class SliceGuard:
     ) -> Tuple[pd.DataFrame, List[DataIssue]]:
         """
         Create an interactive report on the found issues in spotlight.
-        :param spotlight_dtype: Define a datatype mapping for the interactive spotlight report. Will be passed to dtypes parameter of spotlight.show.
+
+        :param spotlight_dtype: Define a datatype mapping for the interactive spotlight report. Will be passed to dtypes parameter of spotlight.show. Form is spotlight_dtype={"image": spotlight.Image}.
         :param issue_portion: The absolute or relative value of samples belonging to an issue that are shown in the report (for downsampling).
         :param non_issue_portion: The absolute or relative value of samples not belonging to an issue that are shown in the report (for downsampling).
+        :param host: The host spotlight should be started on. Default is 127.0.0.1.
+        :param port: The port spotlight should be started on. Default is "auto".
+        :param no_browser: Do not start spotlight but just return the dataframe and issues. Useful for programmatic issue evaluation.
         """
         # Some basic checks
         assert self._issues is not None

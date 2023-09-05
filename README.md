@@ -5,6 +5,7 @@
 <p align="center">
  	<a href="https://pypi.org/project/sliceguard/"><img src="https://img.shields.io/pypi/pyversions/sliceguard" height="20"/></a>
  	<a href="https://pypi.org/project/sliceguard/"><img src="https://img.shields.io/pypi/wheel/sliceguard" height="20"/></a>
+	<a href="https://sliceguard.readthedocs.io/en/latest/index.html"><img src="https://readthedocs.org/projects/sliceguard/badge/?version=latest&amp;style=flat" height="20"></a>
 </p>
 
 <p align="center"><img src="https://github.com/Renumics/sliceguard/raw/main/static/img/sliceguard_github.gif" width="100%"/><img src="https://github.com/Renumics/sliceguard/raw/main/static/img/dropshadow.png" width="100%"/></p>

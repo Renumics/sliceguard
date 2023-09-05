@@ -13,6 +13,7 @@
 - [x] Improve normalization for mixed type runs e.g. embedding + one categorical or numeric variable.
 - [x] Walthroughs for unstructured, structured and mixed data. Also, in depth tutorial explaining all the parameters.
 - [x] Soft Dependencies for embedding computation and autml as torch and xgboost dependencies are large
+- [ ] Per use case helpers such as find_issues_object_detection, find_issues_ts_forecasting, ...
 - [ ] Allow for model comparisons via intersection, difference, ...
 - [ ] Allow application of sliceguard on timeseries
 - [ ] Add Sliceguard deepdive notebook to show more advanced usage

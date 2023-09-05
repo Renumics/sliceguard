@@ -365,7 +365,7 @@ class SliceGuard:
         :param host: The host spotlight should be started on. Default is 127.0.0.1.
         :param port: The port spotlight should be started on. Default is "auto".
         :param no_browser: Do not start spotlight but just return the dataframe and issues. Useful for programmatic issue evaluation.
-        :rtype: Tuple in the format (enriched dataframe, list of spotlight DataIssues, spotlight datatype mapping dict).
+        :rtype: Tuple in the format (enriched dataframe, list of spotlight DataIssues, spotlight datatype mapping dict, spotlight layout).
         """
         # Some basic checks
         assert self._issues is not None
@@ -498,36 +498,39 @@ class SliceGuard:
             for class_idx, label in enumerate(self._classes):
                 df[f"sg_p_{label}"] = self._generated_y_probs[:, class_idx].tolist()
 
-        issue_list = np.array(data_issues)[data_issue_order].tolist()
+        spotlight_issue_list = np.array(data_issues)[data_issue_order].tolist()
 
-        dtypes = {**spotlight_dtype, **embedding_dtypes}
+        spotlight_dtypes = {**spotlight_dtype, **embedding_dtypes}
+
+        spotlight_layout = layout.layout(
+            [
+                [layout.table()],
+                [
+                    layout.similaritymap(
+                        columns=["sg_projection"]
+                        if self._projection is not None
+                        else None
+                    )
+                ],
+                [layout.histogram()],
+            ],
+            [[layout.widgets.Inspector()], [layout.widgets.Issues()]],
+        )
 
         if not no_browser:
             spotlight.show(
                 df,
-                dtype=dtypes,
+                dtype=spotlight_dtypes,
                 host=host,
                 port=port,
-                issues=issue_list,
-                layout=layout.layout(
-                    [
-                        [layout.table()],
-                        [
-                            layout.similaritymap(
-                                columns=["sg_projection"]
-                                if self._projection is not None
-                                else None
-                            )
-                        ],
-                        [layout.histogram()],
-                    ],
-                    [[layout.widgets.Inspector()], [layout.widgets.Issues()]],
-                ),
+                issues=spotlight_issue_list,
+                layout=spotlight_layout,
             )
         return (
             df,
-            issue_list,
-            dtypes,
+            spotlight_issue_list,
+            spotlight_dtypes,
+            spotlight_layout,
         )  # Return the create report dataframe in case caller wants to process it
 
     def _prepare_data(

@@ -355,7 +355,7 @@ class SliceGuard:
         host: str = "127.0.0.1",
         port: int = "auto",
         no_browser: bool = False,
-    ) -> Tuple[pd.DataFrame, List[DataIssue], Dict[spotlight.dtypes.base.DType]]:
+    ) -> Tuple[pd.DataFrame, List[DataIssue], Dict[str, spotlight.dtypes.base.DType]]:
         """
         Create an interactive report on the found issues in spotlight.
 

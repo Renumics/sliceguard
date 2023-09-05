@@ -139,7 +139,7 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=20.0,
         automl_use_full_embeddings=False,
-    ) -> List(dict):
+    ) -> List[dict]:
         """
         Find slices that are classified badly by your model.
 

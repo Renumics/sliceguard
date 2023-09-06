@@ -145,8 +145,13 @@ class SliceGuard:
         self._df = data  # safe that here to not modify original dataframe accidentally
         df = data.copy()  # assign to shorter name
 
+        # also safe originally supplied parameters for y and y_pred here
+        self._y = y
+        self._y_pred = y_pred
+
         (
             feature_types,
+            raw_feature_types,
             encoded_data,
             projection,
             mfs,
@@ -263,6 +268,9 @@ class SliceGuard:
         self._clustering_cols = clustering_cols
         self._metric_mode = metric_mode
         self._projection = projection
+        self._features = features
+        self._feature_types = feature_types
+        self._raw_feature_types = raw_feature_types
         self.embeddings = raw_embeddings
 
         return issues
@@ -380,11 +388,19 @@ class SliceGuard:
                     importance_strings
                 )
 
-            predicate_strings = [
+            range_predicate_strings = [
                 f"{x['minimum']:.1f}  < {x['column']} < {x['maximum']:.1f}"
                 for x in issue["explanation"][:num_features_explanation]
                 if ("minimum" in x and "maximum" in x)
             ]
+
+            mode_predicate_strings = [
+                f"mode = {x['mode']}"
+                for x in issue["explanation"][:num_features_explanation]
+                if ("mode" in x)
+            ]
+
+            predicate_strings = range_predicate_strings + mode_predicate_strings
 
             if len(predicate_strings) > 0:
                 issue_explanation += "\n\nFeature Ranges: " + "; ".join(
@@ -422,6 +438,31 @@ class SliceGuard:
 
         spotlight_dtypes = {**spotlight_dtype, **embedding_dtypes}
 
+        spotlight_inspector_fields = []
+        for col in self._features:
+            if self._feature_types[col] == "raw":
+                if self._raw_feature_types[col] == "image":
+                    spotlight_inspector_fields.append(layout.lenses.image(col))
+                elif self._raw_feature_types[col] == "audio":
+                    spotlight_inspector_fields.append(layout.lenses.audio(col))
+                    spotlight_inspector_fields.append(layout.lenses.spectrogram(col))
+                elif self._raw_feature_types[col] == "text":
+                    spotlight_inspector_fields.append(layout.lenses.text(col))
+            if (
+                self._feature_types[col] == "numerical"
+                or self._feature_types[col] == "nominal"
+                or self._feature_types[col] == "ordinal"
+            ):
+                spotlight_inspector_fields.append(layout.lenses.scalar(col))
+
+        if self._y is not None:
+            spotlight_inspector_fields.append(layout.lenses.scalar(self._y))
+
+        if self._y_pred is not None:
+            spotlight_inspector_fields.append(layout.lenses.scalar(self._y_pred))
+        else:
+            spotlight_inspector_fields.append(layout.lenses.scalar("sg_y_pred"))
+
         spotlight_layout = layout.layout(
             [
                 [layout.table()],
@@ -432,9 +473,25 @@ class SliceGuard:
                         else None
                     )
                 ],
-                [layout.histogram()],
+                [
+                    layout.histogram(
+                        "Histogram",
+                        column=next(
+                            (
+                                col
+                                for col in self._features
+                                if self._feature_types[col]
+                                in ["numerical", "nominal", "ordinal"]
+                            ),
+                            None,
+                        ),
+                    )
+                ],
             ],
-            [[layout.widgets.Inspector()], [layout.widgets.Issues()]],
+            [
+                [layout.inspector("Inspector", spotlight_inspector_fields)],
+                [layout.issues()],
+            ],
         )
 
         if not no_browser:
@@ -494,7 +551,7 @@ class SliceGuard:
         df = data  # just rename the variable for shorter naming
 
         # Try to infer the column dtypes
-        feature_types, feature_orders = infer_feature_types(
+        feature_types, feature_orders, raw_feature_types = infer_feature_types(
             features, feature_types, feature_orders, precomputed_embeddings, df
         )
 
@@ -517,6 +574,7 @@ class SliceGuard:
             features,
             feature_types,
             feature_orders,
+            raw_feature_types,
             precomputed_embeddings,
             embedding_models,
             embedding_weights,
@@ -603,6 +661,7 @@ class SliceGuard:
 
         return (
             feature_types,
+            raw_feature_types,
             encoded_data,
             projection,
             mfs,

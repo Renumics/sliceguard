@@ -7,7 +7,7 @@ warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 
 # Real imports
 from uuid import uuid4
-from typing import List, Literal, Dict, Callable, Optional, Tuple
+from typing import List, Literal, Dict, Callable, Optional, Tuple, Union
 
 import pandas as pd
 import numpy as np
@@ -248,8 +248,8 @@ class SliceGuard:
     def report(
         self,
         spotlight_dtype: Dict[str, spotlight.dtypes.base.DType] = {},
-        issue_portion: Optional[int | float] = None,
-        non_issue_portion: Optional[int | float] = None,
+        issue_portion: Optional[Union[int, float]] = None,
+        non_issue_portion: Optional[Union[int, float]] = None,
         host: str = "127.0.0.1",
         port: int = "auto",
         no_browser: bool = False,

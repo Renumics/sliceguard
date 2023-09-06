@@ -68,8 +68,8 @@ class SliceGuard:
         :param y: Name of the dataframe column containing your ground-truth labels.
         :param y_pred: Name of the dataframe column containing your model's predictions.
         :param metric: A callable metric function that must correspond to the form metric(y_true, y_pred) -> scikit-learn style.
-        :param min_support: Minimum support for a cluster to be listed as an issue (together with min_drop).
-        :param min_drop: Minimum metric drop for a cluster to be listed as an issue (together with min_support).
+        :param min_support: Minimum support for a cluster to be listed as an issue.
+        :param min_drop: Minimum metric drop for a cluster to be listed as an issue.
         :param n_slices: Number of problematic clusters find_issues should return after sorting them by a criterion specified by the "criterion" parameter.
         :param criterion: Criterion after which the slices get sorted when using n_slices. One of drop, support or drop*support.
         :param metric_mode: Optimization goal for your metric. max is the right choice for accuracy while e.g. min is good for regression error.
@@ -100,7 +100,7 @@ class SliceGuard:
         :rtype: List of issues, represented as python dicts.
         """
 
-        # Validate if there is invalid configuration of slice return config
+        # If nothing is given set a default config
         if (
             min_drop is None
             and min_support is None
@@ -109,38 +109,8 @@ class SliceGuard:
         ):
             n_slices = 20
             criterion = "drop"
-        elif (
-            n_slices is not None
-            and criterion is None
-            and min_drop is None
-            and min_support is None
-        ):
+        elif n_slices is not None and criterion is None:
             criterion = "drop"
-
-        else:
-            if not (
-                (
-                    min_drop is not None
-                    and min_support is not None
-                    and n_slices is None
-                    and criterion is None
-                )
-                or (
-                    min_drop is None
-                    and min_support is None
-                    and n_slices is not None
-                    and criterion is not None
-                )
-                or (
-                    min_drop is None
-                    and min_support is None
-                    and n_slices is not None
-                    and criterion is None
-                )
-            ):
-                raise RuntimeError(
-                    "Invalid Configuration: Use either n_slices, n_slices + criterion or min_drop + min_support!"
-                )
 
         self._df = data  # safe that here to not modify original dataframe accidentally
         df = data.copy()  # assign to shorter name
@@ -342,9 +312,9 @@ class SliceGuard:
 
         # Downsample the dataframe
         selected_dataframe_rows = np.sort(
-            np.concatenate(
-                (selected_issue_rows, selected_non_issue_rows)
-            )  # Do not change the order of the dataframe here. This was a hard to find bug!!!
+            np.concatenate((selected_issue_rows, selected_non_issue_rows)).astype(
+                int
+            )  # Do not change the order of the dataframe here. This was a hard to find bug!!! Note that also astype(int) is important in case one of the arrays is empty. Else auto converted to float.
         )
 
         df = df.iloc[selected_dataframe_rows]
@@ -395,7 +365,7 @@ class SliceGuard:
             ]
 
             mode_predicate_strings = [
-                f"mode = {x['mode']}"
+                f"{x['column']} (mode) = {x['mode']}"
                 for x in issue["explanation"][:num_features_explanation]
                 if ("mode" in x)
             ]

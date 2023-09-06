@@ -179,13 +179,9 @@ def detect_issues(
     # TODO: Determine if these values should be chosen adaptively, potentially differing on every level
     group_dfs = []
 
-    if n_slices is not None and criterion is not None:
-        print(f"Using {n_slices} as maximum slice number to return.")
-        print(f"Using {criterion} as sorting criterion for the slices to return.")
-
-    if min_drop is not None and min_support is not None:
-        print(f"Using {min_drop} as minimum drop for clusters to return.")
-        print(f"Using {min_support} as minimum support for slices to return.")
+    print(
+        f"Detecting issues for criteria n_slices={n_slices}, criterion={criterion}, min_drop={min_drop}, min_support={min_support}."
+    )
 
     previous_clustering_col = None
 
@@ -278,49 +274,58 @@ def detect_issues(
                 axis=1,
             )
 
-        # Define columns to use for traversing tree
-        if remove_outliers:
-            drop_col = "true_drop"
-            support_col = "true_support"
-        else:
-            drop_col = "drop"
-            support_col = "support"
-
         group_dfs.append(group_df)
 
         previous_clustering_col = clustering_col
 
-    if min_support is not None and min_drop is not None:
-        for group_df in group_dfs:
-            group_df["issue"] = False
+    # Now mark issues in the prepared dataframe
+    # Define columns to use for filtering for issues
+    if remove_outliers:
+        drop_col = "true_drop"
+        support_col = "true_support"
+    else:
+        drop_col = "drop"
+        support_col = "support"
 
-            group_df.loc[
-                (group_df[drop_col] >= min_drop)
-                & (group_df[support_col] >= min_support),
-                "issue",
-            ] = True
-    elif n_slices is not None and criterion is not None:
-        all_groups_df = pd.concat(group_dfs)
-        all_groups_df["drop*support"] = all_groups_df["drop"] * all_groups_df["support"]
+    # Add issue col to all group_dfs
+    for group_df in group_dfs:
+        group_df["issue"] = False
+
+    # Create one big dataframe for all groupings
+    all_groups_df = pd.concat(group_dfs)
+
+    # Create masks for hard filtering criterions min_support, min_drop
+    if min_support is not None:
+        min_support_mask = all_groups_df[support_col] >= min_support
+    else:
+        min_support_mask = np.full(len(all_groups_df), True)
+
+    if min_drop is not None:
+        min_drop_mask = all_groups_df[drop_col] >= min_drop
+    else:
+        min_drop_mask = np.full(len(all_groups_df), True)
+
+    # Mark which clusters are issues according to hard criteria
+    all_groups_df["issue"] = min_drop_mask & min_support_mask
+
+    # Sort after criterion if n_slices and criterion are set
+    if n_slices is not None and criterion is not None:
+        all_groups_df["drop*support"] = (
+            all_groups_df[drop_col] * all_groups_df[support_col]
+        )
         assert (
             criterion == "support" or criterion == "drop" or criterion == "drop*support"
         )
         all_groups_df = all_groups_df.sort_values(criterion, ascending=False)
 
-        for group_df in group_dfs:
-            group_df["issue"] = False
-
-        marked_issue_idx = 0
-        for idx, row in all_groups_df.iterrows():
+    # Mark issues and potentially break if n_lices is exceeded
+    marked_issue_idx = 0
+    for idx, row in all_groups_df.iterrows():
+        if row["issue"] == True:
             group_dfs[int(row["level"])].loc[idx] = True
 
             marked_issue_idx += 1
-            if marked_issue_idx >= n_slices:
+            if n_slices is not None and marked_issue_idx >= n_slices:
                 break
-
-    else:
-        raise RuntimeError(
-            "Error: Invalid configuration involving n_slices, criterion, min_support, min_drop encountered!"
-        )
 
     return group_dfs

@@ -11,7 +11,6 @@ from typing import List, Literal, Dict, Callable, Optional, Tuple
 
 import pandas as pd
 import numpy as np
-import plotly.express as px
 
 
 from renumics import spotlight
@@ -23,91 +22,12 @@ from .utils import infer_feature_types, encode_normalize_features
 from .detection import generate_metric_frames, detect_issues
 from .explanation import explain_clusters
 from .modeling import fit_outlier_detection_model, fit_classification_regression_model
-from .report import prepare_report
 
 
 class SliceGuard:
     """
     The main class for detecting issues in your data
     """
-
-    def show(
-        self,
-        data: pd.DataFrame,
-        features: List[str],
-        y: str = None,
-        y_pred: str = None,
-        metric: Callable = None,
-        metric_mode: Literal["min", "max"] = None,
-        drop_reference: Literal["overall", "parent"] = "overall",
-        remove_outliers: bool = False,
-        feature_types: Dict[
-            str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
-        ] = {},
-        feature_orders: Dict[str, list] = {},
-        precomputed_embeddings: Dict[str, np.array] = {},
-        embedding_models: Dict[str, str] = {},
-        embedding_weights: Dict[str, float] = {},
-        hf_auth_token=None,
-        hf_num_proc=None,
-        hf_batch_size=1,
-        automl_task="classification",
-        automl_split_key=None,
-        automl_train_split=None,
-        automl_time_budget=20.0,
-        automl_use_full_embeddings=False,
-    ) -> None:
-        """
-        Function to generate an interactive report that allows limited interactive exploration and
-        serves as starting point for detailed analysis in spotlight.
-        """
-        df = data.copy()  # assign to shorter name
-
-        print("Please wait. sliceguard is preparing your data.")
-        (
-            feature_types,
-            encoded_data,
-            projection,
-            mfs,
-            clustering_df,
-            clustering_cols,
-            clustering_metric_cols,
-            prereduced_embeddings,
-            raw_embeddings,
-        ) = self._prepare_data(
-            df,
-            features,
-            y,
-            y_pred,
-            metric,
-            remove_outliers,
-            feature_types=feature_types,
-            feature_orders=feature_orders,
-            precomputed_embeddings=precomputed_embeddings,
-            embedding_models=embedding_models,
-            embedding_weights=embedding_weights,
-            hf_auth_token=hf_auth_token,
-            hf_num_proc=hf_num_proc,
-            hf_batch_size=hf_batch_size,
-            automl_split_key=automl_split_key,
-            automl_train_split=automl_train_split,
-            automl_task=automl_task,
-            automl_time_budget=automl_time_budget,
-            automl_use_full_embeddings=automl_use_full_embeddings,
-        )
-
-        if y is None and y_pred is None and metric_mode is None:
-            metric_mode = "min"
-            print(
-                f"For outlier detection mode metric_mode will be set to {metric_mode} if not specified otherwise."
-            )
-        elif metric_mode is None:
-            metric_mode = "max"
-            print(
-                f"You didn't specify metric_mode parameter. Using {metric_mode} as default."
-            )
-
-        prepare_report(mfs, clustering_df, clustering_cols, metric_mode, drop_reference)
 
     # TODO: Introduce control features to account for expected variations
     def find_issues(
@@ -692,30 +612,3 @@ class SliceGuard:
             prereduced_embeddings,
             raw_embeddings,
         )
-
-    def _plot_clustering_overview(self):
-        """
-        Debugging method to get an overview on the last clustering structure.
-        """
-        # for i in range(len(self._clustering_cols)):
-        # cur_clustering_cols = self._clustering_cols[:i+1]
-        cur_clustering_cols = self._clustering_cols
-        plotting_df = pd.concat((self._clustering_df, self._issue_df), axis=1)
-        plotting_df["is_issue"] = plotting_df["issue"] != -1
-        plotting_df["issue_metric_str"] = plotting_df["issue_metric"].apply(
-            lambda x: "{0:.2f}".format(x)
-            if (isinstance(x, float) or isinstance(x, np.floating)) and not np.isnan(x)
-            else ""
-        )
-        fig = px.treemap(
-            plotting_df,
-            path=cur_clustering_cols,
-            color="is_issue",
-            color_discrete_map={"(?)": "lightgrey", True: "gold", False: "darkblue"},
-            custom_data="issue_metric_str",
-        )
-        fig.data[0].texttemplate = "%{customdata[0]}"
-        fig.data[0].textinfo = "none"
-        # fig.write_image(f"clustering_{i}.png", scale=4)
-
-        fig.show()

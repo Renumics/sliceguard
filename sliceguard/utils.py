@@ -32,6 +32,7 @@ def infer_feature_types(
 
     feature_types = {}
     feature_orders = {}
+    raw_feature_types = {}
     for col in features:
         # check if the column is supplied in precomputed embeddings, then always use embedding feature type
         if col in precomputed_embeddings:
@@ -53,6 +54,35 @@ def infer_feature_types(
                     f"Feature {col} was inferred as referring to raw data. If this is not the case, please specify in feature_types!"
                 )
                 feature_types[col] = "raw"
+                # Try to infer the type of the raw/unstructured data here and safe for later use
+                if all(
+                    [
+                        pd.notnull(s)
+                        and (s.lower().endswith(".wav") or s.lower().endswith(".mp3"))
+                        for s in df[col]
+                    ]
+                ):
+                    raw_feature_types[col] = "audio"
+                elif all(
+                    [
+                        pd.notnull(s)
+                        and (
+                            s.lower().endswith(".jpg")
+                            or s.lower().endswith(".jpeg")
+                            or s.lower().endswith(".png")
+                            or s.lower().endswith(".gif")
+                        )
+                        for s in df[col]
+                    ]
+                ):
+                    raw_feature_types[col] = "image"
+                elif all([pd.notnull(s) for s in df[col]]):
+                    raw_feature_types[col] = "text"
+                else:
+                    raise RuntimeError(
+                        f"Raw datatype column {col} contains missing values. This is not supported yet."
+                    )
+
             else:
                 print(
                     f"Feature {col} was inferred as being categorical. Will be treated as nominal by default. If ordinal specify in feature_types and feature_orders or use Pandas categoricals!"
@@ -98,13 +128,14 @@ def infer_feature_types(
                 f"You didn't specify an order for ordinal feature {col}. Use feature_orders parameter."
             )
 
-    return feature_types, feature_orders
+    return feature_types, feature_orders, raw_feature_types
 
 
 def encode_normalize_features(
     features: List[str],
     feature_types: Dict[str, Literal["raw", "nominal", "ordinal", "numerical"]],
     feature_orders: Dict[str, list],
+    raw_feature_types: Dict[str, Literal["image", "audio", "text"]],
     precomputed_embeddings: Dict[str, np.array],
     embedding_models: Dict[str, str],
     embedding_weights: Dict[str, float],
@@ -190,46 +221,29 @@ def encode_normalize_features(
                 raw_embeddings[
                     col
                 ] = embeddings  # also save them here as they are used in report
-            elif all(
-                [
-                    pd.notnull(s)
-                    and (s.lower().endswith(".wav") or s.lower().endswith(".mp3"))
-                    for s in df[col]
-                ]
+            elif (
+                raw_feature_types[col] == "audio"
             ):  # TODO: Improve data type inference for raw data
                 print("Computing audio embeddings.")
                 embeddings = generate_audio_embeddings(
                     df[col].values, **hf_model_params
                 )
                 raw_embeddings[col] = embeddings
-            elif all(
-                [
-                    pd.notnull(s)
-                    and (
-                        s.lower().endswith(".jpg")
-                        or s.lower().endswith(".jpeg")
-                        or s.lower().endswith(".png")
-                        or s.lower().endswith(".gif")
-                    )
-                    for s in df[col]
-                ]
-            ):
+            elif raw_feature_types[col] == "image":
                 print("Computing image embeddings.")
                 embeddings = generate_image_embeddings(
                     df[col].values, **hf_model_params
                 )
                 raw_embeddings[col] = embeddings
-            elif all(
-                [pd.notnull(s) for s in df[col]]
-            ):  # Treat as text if nothing known
+            elif raw_feature_types[col] == "text":  # Treat as text if nothing known
                 print(
-                    f"Warning: Computing text embeddings. If the column {col} is a path to some file it is probably not supported yet!"
+                    f"Warning: Column {col} will be treated as text. If the column {col} is a path to some file it is probably not supported yet!"
                 )
                 embeddings = generate_text_embeddings(df[col].values, **hf_model_params)
                 raw_embeddings[col] = embeddings
             else:
                 raise RuntimeError(
-                    f"Could not compute embeddings for column {col}. Probably contains missing values? Remove manually!"
+                    f"Unknown data type {raw_feature_types[col]} encountered in embedding computation. This should never happen."
                 )
 
             # TODO: Potentially filter out entries without valid embedding or replace with mean?

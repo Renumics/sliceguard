@@ -1,4 +1,4 @@
-<p align="center"><a href="https://github.com/Renumics/sliceguard"><img src="https://github.com/Renumics/sliceguard/raw/main/static/img/spotlight.svg" alt="Spotlight Logo" height="60"/></a></p>
+<p align="center"><a href="https://github.com/Renumics/sliceguard"><img src="https://github.com/Renumics/sliceguard/raw/main/static/img/sliceguard.svg" alt="Sliceguard Logo" height="60"/></a></p>
 <h1 align="center">sliceguard</h1>
 <p align="center">Detect problematic data slices in unstructured and structured data – fast.</p>
 

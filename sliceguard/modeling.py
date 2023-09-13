@@ -5,6 +5,7 @@ from sklearn.preprocessing import LabelEncoder
 from typing import Literal
 import datasets
 
+
 def get_automl_imports():
     try:
         from flaml import AutoML
@@ -110,18 +111,23 @@ def fit_classification_regression_model(
     return y_preds, y_probs, classes
 
 
-
-
 def _check_training_imports():
     try:
-        from transformers import AutoImageProcessor, AutoModelForImageClassification, DefaultDataCollator,  TrainingArguments, Trainer
+        from transformers import (
+            AutoImageProcessor,
+            AutoModelForImageClassification,
+            DefaultDataCollator,
+            TrainingArguments,
+            Trainer,
+        )
         import torch
     except ImportError:
         raise Warning(
             'Optional dependency required! (pip install "sliceguard[embedding]")'
         )
 
-    return 
+    return
+
 
 def _transform(example_batch, image_processor):
     inputs = image_processor(
@@ -130,21 +136,33 @@ def _transform(example_batch, image_processor):
     inputs["label"] = example_batch["label"]
     return inputs
 
+
 def load_image_preprocessor(model_name):
     """Load an image preprocessor for the model. This will resize the images to the correct size for the model."""
     from transformers import AutoImageProcessor
+
     checkpoint = model_name
     image_processor = AutoImageProcessor.from_pretrained(checkpoint)
     return image_processor
 
-def load_model(model_name,  num_labels):
+
+def load_model(model_name, num_labels):
     """Load the pre-trained model with AutoModelForImageClassification. Specify number of labels."""
     from transformers import AutoModelForImageClassification
+
     checkpoint = model_name
-    model = AutoModelForImageClassification.from_pretrained(checkpoint, num_labels=num_labels)
+    model = AutoModelForImageClassification.from_pretrained(
+        checkpoint, num_labels=num_labels
+    )
     return model
 
-def finetune_image_classfier(df, model_name="google/vit-base-patch16-224-in21k", output_model_folder="model_folder", epochs=5):
+
+def finetune_image_classfier(
+    df,
+    model_name="google/vit-base-patch16-224-in21k",
+    output_model_folder="model_folder",
+    epochs=5,
+):
     _check_training_imports()
     import torch
     from transformers import DefaultDataCollator, TrainingArguments, Trainer
@@ -178,7 +196,7 @@ def finetune_image_classfier(df, model_name="google/vit-base-patch16-224-in21k",
         train_dataset=prepared_ds,
         eval_dataset=prepared_ds,
         tokenizer=image_processor,
-        #callbacks=[PrinterCallback],
+        # callbacks=[PrinterCallback],
     )
 
     train_results = trainer.train()

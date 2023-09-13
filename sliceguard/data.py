@@ -105,7 +105,11 @@ def create_imagedataset_from_bing(
     for query in queries:
         # check number of images in the folder and download if necessary
         downloaded_images_count = len(
-            [p for p in (Path(dataset_folder)/query).glob("*.*") if p.suffix in image_file_extensions]
+            [
+                p
+                for p in (Path(dataset_folder) / query).glob("*.*")
+                if p.suffix in image_file_extensions
+            ]
         )
         if downloaded_images_count < num_images:
             downloader.download(
@@ -119,7 +123,9 @@ def create_imagedataset_from_bing(
     df = pd.DataFrame()
     for i, query in enumerate(queries):
         image_paths = [
-            str(p) for p in Path(f"{dataset_folder}/{query}/").glob("*.*") if p.suffix in image_file_extensions
+            str(p)
+            for p in Path(f"{dataset_folder}/{query}/").glob("*.*")
+            if p.suffix in image_file_extensions
         ]
         new_images = pd.DataFrame(
             {

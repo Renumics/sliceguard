@@ -51,11 +51,16 @@ def generate_image_pred_probs_embeddings(
     hf_auth_token=None,
     hf_num_proc=None,
     hf_batch_size=1,
-)->(List, List, List):
-    probs = generate_image_probabilites(image_paths, model_name, hf_auth_token, hf_num_proc, hf_batch_size).tolist()
-    embeddings = generate_image_embeddings(image_paths, model_name, hf_auth_token, hf_num_proc, hf_batch_size).tolist()
+) -> (List, List, List):
+    probs = generate_image_probabilites(
+        image_paths, model_name, hf_auth_token, hf_num_proc, hf_batch_size
+    ).tolist()
+    embeddings = generate_image_embeddings(
+        image_paths, model_name, hf_auth_token, hf_num_proc, hf_batch_size
+    ).tolist()
     preds = np.argmax(probs, axis=1).tolist()
     return preds, probs, embeddings
+
 
 def _extract_embeddings_images(model, feature_extractor, col_name="image"):
     """Utility to compute embeddings for images."""
@@ -146,11 +151,17 @@ def _extract_probabilities_image(model, feature_extractor, col_name="image"):
         inputs = feature_extractor(images=images, return_tensors="pt").to(device)
         with torch.no_grad():
             outputs = model(**inputs)
-            probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1).detach().cpu().numpy()
+            probabilities = (
+                torch.nn.functional.softmax(outputs.logits, dim=-1)
+                .detach()
+                .cpu()
+                .numpy()
+            )
 
         return {"probabilities": probabilities}
 
     return pp
+
 
 def generate_image_probabilites(
     image_paths,
@@ -161,6 +172,7 @@ def generate_image_probabilites(
 ):
     _, _, _, torch = get_embedding_imports()
     from transformers import ViTFeatureExtractor, ViTForImageClassification
+
     feature_extractor = ViTFeatureExtractor.from_pretrained(
         model_name, use_auth_token=hf_auth_token
     )
@@ -200,7 +212,6 @@ def generate_image_probabilites(
     )
 
     return probabilities
-
 
 
 def _extract_embeddings_audios(model, feature_extractor, col_name="audio"):

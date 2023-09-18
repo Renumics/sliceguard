@@ -3,7 +3,15 @@ from pathlib import Path
 import pandas as pd
 import datasets
 from datasets import Image, ClassLabel, Value, Sequence
-from bing_image_downloader import downloader
+
+def _get_tutorial_imports():
+    try:
+        from bing_image_downloader import downloader
+    except ImportError:
+        raise RuntimeError(
+            'Optional dependency bing-image-downloaer required! (run pip install "bing-image-downloader")'
+        )
+    return downloader
 
 
 def from_huggingface(dataset_identifier: str):
@@ -71,7 +79,8 @@ def create_imagedataset_from_bing(
     :param force_replace: Whether to force replace existing images.
     :param timeout: Timeout for downloading images.
     """
-
+    downloader = _get_tutorial_imports()
+    
     image_file_extensions = (".jpg", ".jpeg", ".png")
 
     if license is None:

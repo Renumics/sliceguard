@@ -59,6 +59,8 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=20.0,
         automl_use_full_embeddings=False,
+        automl_hf_model = "",
+        automl_hf_model_architecture = None,
     ) -> List[dict]:
         """
         Find slices that are classified badly by your model.
@@ -97,6 +99,8 @@ class SliceGuard:
             If not supplied using crossvalidation.
         :param automl_time_budget: The time budget used by sliceguard for training a model.
         :param automl_use_full_embeddings: Wether to use the raw embeddings instead of the pre-reduced ones when training a model. Can potentially improve performance.
+        :param automl_hf_model: A pre-trained model that can be used instead of the default xgboost model.
+        :param automl_hf_model_architecture: Model architecture used to train a model on "features". Right now supports only image classification.
         :rtype: List of issues, represented as python dicts.
         """
 
@@ -594,6 +598,7 @@ class SliceGuard:
                     X_data.append(v)
 
             y_preds, y_probs, classes = fit_classification_regression_model(
+                df=df,
                 encoded_data=np.concatenate(X_data, axis=1)
                 if automl_use_full_embeddings
                 else encoded_data,

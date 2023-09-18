@@ -1,3 +1,4 @@
+import pandas as pd
 import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import LabelEncoder
@@ -24,12 +25,15 @@ def fit_outlier_detection_model(encoded_data: np.array):
 
 
 def fit_classification_regression_model(
+    df: pd.DataFrame,
     encoded_data: np.array,
     ys: np.array,
     task: Literal["classification", "regression"],
     split: np.array = None,
     train_split: str = None,
     time_budget: float = 20.0,
+    hf_model = None,
+    hf_model_architecture = None,
 ):
     if task == "classification":
         label_encoder = LabelEncoder()
@@ -46,6 +50,18 @@ def fit_classification_regression_model(
         num_classes = None
         automl_metric = "mse"
 
+    if hf_model is not None and hf_model_architecture is not None:
+        y_probs, y_preds, classes = _fit_hf_model(encoded_data, task, split, train_split, label_encoder, encoded_ys)
+    else:
+        y_probs, y_preds, classes = _fit_embedding_based_model(encoded_data, task, split, train_split, time_budget, label_encoder, encoded_ys, automl_metric)
+
+    return y_preds, y_probs, classes
+
+def _fit_hf_model(data, task, split, train_split, label_encoder, encoded_ys):
+    pass
+
+
+def _fit_embedding_based_model(encoded_data, task, split, train_split, time_budget, label_encoder, encoded_ys, automl_metric):
     AutoML = get_automl_imports()
 
     if split is not None:
@@ -105,5 +121,4 @@ def fit_classification_regression_model(
         classes = None
     else:
         raise RuntimeError("Could not run inference. Not valid task given.")
-
-    return y_preds, y_probs, classes
+    return y_probs,y_preds,classes

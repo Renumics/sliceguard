@@ -4,12 +4,13 @@ import pandas as pd
 import datasets
 from datasets import Image, ClassLabel, Value, Sequence
 
+
 def _get_tutorial_imports():
     try:
         from bing_image_downloader import downloader
     except ImportError:
         raise RuntimeError(
-            'Optional dependency bing-image-downloaer required! (run pip install "bing-image-downloader")'
+            'Optional dependency bing-image-downloader required! (run pip install "bing-image-downloader")'
         )
     return downloader
 
@@ -80,7 +81,7 @@ def create_imagedataset_from_bing(
     :param timeout: Timeout for downloading images.
     """
     downloader = _get_tutorial_imports()
-    
+
     image_file_extensions = (".jpg", ".jpeg", ".png")
 
     if license is None:

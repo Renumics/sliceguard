@@ -45,23 +45,6 @@ def generate_text_embeddings(
     return embeddings
 
 
-def generate_image_pred_probs_embeddings(
-    image_paths,
-    model_name="google/vit-base-patch16-224",
-    hf_auth_token=None,
-    hf_num_proc=None,
-    hf_batch_size=1,
-) -> (List, List, List):
-    probs = generate_image_probabilites(
-        image_paths, model_name, hf_auth_token, hf_num_proc, hf_batch_size
-    ).tolist()
-    embeddings = generate_image_embeddings(
-        image_paths, model_name, hf_auth_token, hf_num_proc, hf_batch_size
-    ).tolist()
-    preds = np.argmax(probs, axis=1).tolist()
-    return preds, probs, embeddings
-
-
 def _extract_embeddings_images(model, feature_extractor, col_name="image"):
     """Utility to compute embeddings for images."""
 
@@ -132,86 +115,6 @@ def generate_image_embeddings(
     )
 
     return embeddings
-
-
-def _extract_probabilities_image(model, feature_extractor, col_name="image"):
-    """Utility to compute probabilites for images."""
-
-    _, _, _, torch = get_embedding_imports()
-
-    device = model.device
-
-    def pp(batch):
-        images = batch[
-            col_name
-        ]  # not sure if this is smart. probably some feature extractors take multiple modalities.
-        for i in range(len(images)):
-            if images[i].mode != "RGB":
-                images[i] = images[i].convert("RGB")
-        inputs = feature_extractor(images=images, return_tensors="pt").to(device)
-        with torch.no_grad():
-            outputs = model(**inputs)
-            probabilities = (
-                torch.nn.functional.softmax(outputs.logits, dim=-1)
-                .detach()
-                .cpu()
-                .numpy()
-            )
-
-        return {"probabilities": probabilities}
-
-    return pp
-
-
-def generate_image_probabilites(
-    image_paths,
-    model_name="google/vit-base-patch16-224",
-    hf_auth_token=None,
-    hf_num_proc=None,
-    hf_batch_size=1,
-):
-    _, _, _, torch = get_embedding_imports()
-    from transformers import ViTFeatureExtractor, ViTForImageClassification
-
-    feature_extractor = ViTFeatureExtractor.from_pretrained(
-        model_name, use_auth_token=hf_auth_token
-    )
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    print(
-        f"Probability computation on {device} with batch size {hf_batch_size} and multiprocessing {hf_num_proc}."
-    )
-
-    model = ViTForImageClassification.from_pretrained(
-        model_name, output_hidden_states=True, use_auth_token=hf_auth_token
-    ).to(device)
-
-    df = pd.DataFrame(data={"image": image_paths})
-    dataset = datasets.Dataset.from_pandas(df).cast_column("image", datasets.Image())
-
-    extract_fn = _extract_probabilities_image(model, feature_extractor, "image")
-
-    if hf_num_proc is not None and hf_num_proc > 1:
-        set_start_method("spawn", force=True)
-
-    updated_dataset = dataset.map(
-        extract_fn,
-        batched=True,
-        batch_size=hf_batch_size,
-        num_proc=hf_num_proc,
-        remove_columns="image",
-    )  # batches has to be true in general, the batch size could be varied, also multiprocessing could be applied
-
-    df_updated = updated_dataset.to_pandas()
-
-    probabilities = np.array(
-        [
-            emb.tolist() if emb is not None else None
-            for emb in df_updated["probabilities"].values
-        ]
-    )
-
-    return probabilities
 
 
 def _extract_embeddings_audios(model, feature_extractor, col_name="audio"):

@@ -7,6 +7,7 @@ warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 
 # Real imports
 from uuid import uuid4
+from pathlib import Path
 from typing import List, Literal, Dict, Callable, Optional, Tuple, Union
 
 import pandas as pd
@@ -50,8 +51,6 @@ class SliceGuard:
         feature_orders: Dict[str, list] = {},
         precomputed_embeddings: Dict[str, np.array] = {},
         embedding_models: Dict[str, str] = {},
-        embedding_model_architectures: Dict[str, "transformers.PreTrainedModel"] = {}, # This is transformers.PreTrainedModel, however it is an optional dependency
-        embedding_model_outputs: Dict[str, Literal["embeddings", "probabilities", "embeddings+probabilities"]] = {},
         embedding_weights: Dict[str, float] = {},
         hf_auth_token=None,
         hf_num_proc=None,
@@ -63,7 +62,8 @@ class SliceGuard:
         automl_use_full_embeddings=False,
         automl_hf_model="",
         automl_hf_model_architecture=None,
-        automl_hf_model_output_dir=None,
+        automl_hf_model_output_dir="./hf_model",
+        automl_hf_model_epochs=5,
     ) -> List[dict]:
         """
         Find slices that are classified badly by your model.
@@ -91,8 +91,6 @@ class SliceGuard:
             This is especially useful if you run repeated checks on your data and you want to compute embeddings only once.
         :param embedding_models: Supply huggingface model identifiers or locally saved models used for computing embeddings on specific columns.
             Format should be embedding_models={"image": "google/vit-base-patch16-224"}.
-        :param embedding_model_architectures: Supply architectures used for instantiating the models defined in embedding_models.
-        :param embedding_model_outputs: Which outputs of the embedding models supplied in embedding_models should be used for clustering? Can be "embeddings", "probabilities" or "embeddings+probabilities".
         :param embedding_weights: Specify how much each computed embedding is weighted in the cluster search. Useful to lower the influence of an embedding
             by setting the parameter lower than 1.0.
         :param hf_auth_token: The authentification token used to download embedding models from the huggingface hub.
@@ -160,6 +158,10 @@ class SliceGuard:
             automl_task=automl_task,
             automl_time_budget=automl_time_budget,
             automl_use_full_embeddings=automl_use_full_embeddings,
+            automl_hf_model=automl_hf_model,
+            automl_hf_model_architecture=automl_hf_model_architecture,
+            automl_hf_model_output_dir=automl_hf_model_output_dir,
+            automl_hf_model_epochs=automl_hf_model_epochs,
         )
 
         if len(mfs) > 0:
@@ -513,6 +515,10 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=None,
         automl_use_full_embeddings=False,
+        automl_hf_model: str = None,
+        automl_hf_model_architecture: "transformers.PreTrainedModel" = None,
+        automl_hf_model_output_dir: Union[str, Path] = None,
+        automl_hf_model_epochs: int = 5,
     ):
         assert (
             all([(f in data.columns or f in precomputed_embeddings) for f in features])
@@ -605,18 +611,23 @@ class SliceGuard:
 
             y_preds, y_probs, classes = fit_classification_regression_model(
                 df=df,
+                y_column=y,
                 feature_types=feature_types,
                 raw_feature_types=raw_feature_types,
                 encoded_data=np.concatenate(X_data, axis=1)
                 if automl_use_full_embeddings
                 else encoded_data,
-                ys=df[y].values,
                 task=automl_task,
                 split=df[automl_split_key].values
                 if automl_split_key is not None
                 else None,
                 train_split=automl_train_split,
                 time_budget=automl_time_budget,
+                hf_model=automl_hf_model,
+                hf_model_architecture=automl_hf_model_architecture,
+                hf_model_output_dir=automl_hf_model_output_dir,
+                hf_model_epochs=automl_hf_model_epochs,
+                hf_auth_token=hf_auth_token,
             )
 
             df[y_pred] = y_preds

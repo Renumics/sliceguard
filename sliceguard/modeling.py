@@ -4,6 +4,10 @@ import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import LabelEncoder
 from typing import Literal
+from .models.huggingface import (
+    finetune_image_classifier,
+    generate_image_pred_probs_embeddings,
+)
 
 
 def get_automl_imports():
@@ -27,20 +31,23 @@ def fit_outlier_detection_model(encoded_data: np.array):
 
 def fit_classification_regression_model(
     df: pd.DataFrame,
+    y_column: str,
     feature_types: Dict[str, str],
     raw_feature_types: Dict[str, str],
     encoded_data: np.array,
-    ys: np.array,
     task: Literal["classification", "regression"],
     split: np.array = None,
     train_split: str = None,
     time_budget: float = 20.0,
-    hf_model = None,
-    hf_model_architecture = None,
+    hf_model=None,
+    hf_model_architecture=None,
+    hf_model_output_dir=None,
+    hf_model_epochs=5,
+    hf_auth_token=None,
 ):
     if task == "classification":
         label_encoder = LabelEncoder()
-        encoded_ys = label_encoder.fit_transform(ys)
+        encoded_ys = label_encoder.fit_transform(df[y_column].values)
         num_classes = len(label_encoder.classes_)
         if num_classes > 2:
             automl_metric = "roc_auc_ovr"
@@ -49,22 +56,98 @@ def fit_classification_regression_model(
         else:
             raise RuntimeError("Invalid number of classes. Must be more than one.")
     else:
-        encoded_ys = ys
+        encoded_ys = df[y_column].values
         num_classes = None
         automl_metric = "mse"
 
-    if hf_model is not None and hf_model_architecture is not None:
-        y_probs, y_preds, classes = _fit_hf_model(encoded_data, task, split, train_split, label_encoder, encoded_ys)
+    if (
+        task == "classification"
+        and hf_model is not None
+        and hf_model_architecture is not None
+        and hf_model_output_dir is not None
+        and len(list(raw_feature_types.values())) == 1
+        and list(raw_feature_types.values())[0] == "image"
+    ):
+        y_probs, y_preds, classes = _fit_hf_model_image_classification(
+            df,
+            list(raw_feature_types.keys())[0],
+            y_column,
+            hf_model,
+            hf_model_architecture,
+            hf_model_output_dir,
+            split,
+            train_split,
+            label_encoder,
+            encoded_ys,
+            hf_model_epochs,
+            hf_auth_token=hf_auth_token,
+        )
     else:
-        y_probs, y_preds, classes = _fit_embedding_based_model(encoded_data, task, split, train_split, time_budget, label_encoder, encoded_ys, automl_metric)
+        y_probs, y_preds, classes = _fit_embedding_based_model(
+            encoded_data,
+            task,
+            split,
+            train_split,
+            time_budget,
+            label_encoder,
+            encoded_ys,
+            automl_metric,
+        )
 
     return y_preds, y_probs, classes
 
-def _fit_hf_model_image_classification(data, task, split, train_split, label_encoder, encoded_ys):
-    print("Fitting a model...")
+
+def _fit_hf_model_image_classification(
+    df,
+    image_column,
+    label_column,
+    model_name,
+    model_architecture,
+    model_output_dir,
+    split,
+    train_split,
+    label_encoder,
+    encoded_ys,
+    epochs,
+    hf_auth_token,
+):
+    train_df = pd.DataFrame()
+    train_df["image"] = df[image_column]
+    train_df["label"] = df[label_column]
+    train_df = train_df.rename(
+        columns={image_column: "image", label_column: "label"}
+    )  # This might not work if the columns are already present.
+    train_df["label"] = encoded_ys
+    if split is not None or train_split is not None:
+        print(
+            "Warning: The Huggingface model finetuning does not yet care for any split arguments."
+        )
+    finetune_image_classifier(
+        train_df,
+        model_name=model_name,
+        model_architecture=model_architecture,
+        output_model_folder=model_output_dir,
+        hf_auth_token=hf_auth_token,
+    )
+    y_preds_raw, probs, _ = generate_image_pred_probs_embeddings(
+        train_df["image"], model_name=model_output_dir, return_embeddings=False
+    )
+    y_preds = label_encoder.inverse_transform(y_preds_raw)
+
+    classes = label_encoder.classes_
+    return np.array(probs), np.array(y_preds), classes
 
 
-def _fit_embedding_based_model(encoded_data, task, split, train_split, time_budget, label_encoder, encoded_ys, automl_metric):
+def _fit_embedding_based_model(
+    encoded_data,
+    task,
+    split,
+    train_split,
+    time_budget,
+    label_encoder,
+    encoded_ys,
+    automl_metric,
+):
     AutoML = get_automl_imports()
 
     if split is not None:
@@ -124,4 +207,4 @@ def _fit_embedding_based_model(encoded_data, task, split, train_split, time_budg
         classes = None
     else:
         raise RuntimeError("Could not run inference. Not valid task given.")
-    return y_probs,y_preds,classes
+    return y_probs, y_preds, classes

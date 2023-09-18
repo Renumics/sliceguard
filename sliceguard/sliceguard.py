@@ -7,6 +7,7 @@ warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 
 # Real imports
 from uuid import uuid4
+from pathlib import Path
 from typing import List, Literal, Dict, Callable, Optional, Tuple, Union
 
 import pandas as pd
@@ -59,6 +60,10 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=20.0,
         automl_use_full_embeddings=False,
+        automl_hf_model="",
+        automl_hf_model_architecture=None,
+        automl_hf_model_output_dir="./hf_model",
+        automl_hf_model_epochs=5,
     ) -> List[dict]:
         """
         Find slices that are classified badly by your model.
@@ -84,8 +89,8 @@ class SliceGuard:
             that is not specified by pandas categorical ordered datatypes.
         :param precomputed_embeddings: Supply precomputed embeddings for raw columns. Form should be precomputed_embeddings={"image": image_embeddings}.
             This is especially useful if you run repeated checks on your data and you want to compute embeddings only once.
-        :param embedding_models: Supply huggingface model identifiers used for computing embeddings on specific columns.
-            Form should be embedding_models={"image": "google/vit-base-patch16-224"}.
+        :param embedding_models: Supply huggingface model identifiers or locally saved models used for computing embeddings on specific columns.
+            Format should be embedding_models={"image": "google/vit-base-patch16-224"}.
         :param embedding_weights: Specify how much each computed embedding is weighted in the cluster search. Useful to lower the influence of an embedding
             by setting the parameter lower than 1.0.
         :param hf_auth_token: The authentification token used to download embedding models from the huggingface hub.
@@ -97,6 +102,10 @@ class SliceGuard:
             If not supplied using crossvalidation.
         :param automl_time_budget: The time budget used by sliceguard for training a model.
         :param automl_use_full_embeddings: Wether to use the raw embeddings instead of the pre-reduced ones when training a model. Can potentially improve performance.
+        :param automl_hf_model: A pre-trained model that can be used instead of the default xgboost model.
+        :param automl_hf_model_architecture: Model architecture used to train a model on "features". Right now supports only image classification.
+        :param automl_hf_model_output_dir: Output directory for training deep learning models via the huggingface transformers library.
+        :param automl_hf_model_epochs: If finetuning hf model, this determines how many epochs the finetuning is going.
         :rtype: List of issues, represented as python dicts.
         """
 
@@ -150,6 +159,10 @@ class SliceGuard:
             automl_task=automl_task,
             automl_time_budget=automl_time_budget,
             automl_use_full_embeddings=automl_use_full_embeddings,
+            automl_hf_model=automl_hf_model,
+            automl_hf_model_architecture=automl_hf_model_architecture,
+            automl_hf_model_output_dir=automl_hf_model_output_dir,
+            automl_hf_model_epochs=automl_hf_model_epochs,
         )
 
         if len(mfs) > 0:
@@ -503,6 +516,10 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=None,
         automl_use_full_embeddings=False,
+        automl_hf_model: str = None,
+        automl_hf_model_architecture: "transformers.PreTrainedModel" = None,
+        automl_hf_model_output_dir: Union[str, Path] = None,
+        automl_hf_model_epochs: int = 5,
     ):
         assert (
             all([(f in data.columns or f in precomputed_embeddings) for f in features])
@@ -594,16 +611,24 @@ class SliceGuard:
                     X_data.append(v)
 
             y_preds, y_probs, classes = fit_classification_regression_model(
+                df=df,
+                y_column=y,
+                feature_types=feature_types,
+                raw_feature_types=raw_feature_types,
                 encoded_data=np.concatenate(X_data, axis=1)
                 if automl_use_full_embeddings
                 else encoded_data,
-                ys=df[y].values,
                 task=automl_task,
                 split=df[automl_split_key].values
                 if automl_split_key is not None
                 else None,
                 train_split=automl_train_split,
                 time_budget=automl_time_budget,
+                hf_model=automl_hf_model,
+                hf_model_architecture=automl_hf_model_architecture,
+                hf_model_output_dir=automl_hf_model_output_dir,
+                hf_model_epochs=automl_hf_model_epochs,
+                hf_auth_token=hf_auth_token,
             )
 
             df[y_pred] = y_preds

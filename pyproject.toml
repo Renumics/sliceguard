@@ -31,20 +31,19 @@ automl = [
   "xgboost >= 1.7.6, < 2.0.0",
 ]
 embedding = [
-  "transformers >= 4.30.2",
+  "transformers[torch] >= 4.30.2",
   "sentence-transformers >= 2.2.1",
-  "torch >= 2.0.1",
   "torchaudio >= 2.0.2",  
   "datasets[audio,vision] >= 2.13.1",
 ]
 all = [
   "flaml >= 2.0.0",
   "xgboost >= 1.7.6, < 2.0.0",
-  "transformers >= 4.30.2",
+  "transformers[torch] >= 4.30.2",
   "sentence-transformers >= 2.2.1",
-  "torch >= 2.0.1",
   "torchaudio >= 2.0.2",
   "datasets[audio,vision]>= 2.13.1",
+  "bing-image-downloader == 1.1.2",
 ]
 docs = [
     "sphinxcontrib-applehelp >= 1.0.7",
@@ -54,6 +53,9 @@ docs = [
     "sphinxcontrib-qthelp >= 1.0.6",
     "sphinxcontrib-serializinghtml >= 1.1.9",
     "myst-parser >= 2.0.0",
+]
+tutorials = [
+  "bing-image-downloader == 1.1.2",
 ]
 
 [project.urls]

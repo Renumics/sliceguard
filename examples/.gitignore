@@ -7,6 +7,11 @@ audios/
 # Do also not commit generated images
 images/
 
+# Do not commit model checkpoints
+hf_model/
+dataset_nemos/
+model_folder/
+
 # Do not commit model predictions
 dataset.json
 sd_dataset.json

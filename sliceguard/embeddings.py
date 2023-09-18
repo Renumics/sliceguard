@@ -1,6 +1,4 @@
 # Embedding support for text, images, audio
-from inspect import getmembers
-from typing import List
 from multiprocess import set_start_method
 import pandas as pd
 import datasets

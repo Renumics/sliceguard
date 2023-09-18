@@ -105,6 +105,7 @@ class SliceGuard:
         :param automl_hf_model: A pre-trained model that can be used instead of the default xgboost model.
         :param automl_hf_model_architecture: Model architecture used to train a model on "features". Right now supports only image classification.
         :param automl_hf_model_output_dir: Output directory for training deep learning models via the huggingface transformers library.
+        :param automl_hf_model_epochs: If finetuning hf model, this determines how many epochs the finetuning is going.
         :rtype: List of issues, represented as python dicts.
         """
 

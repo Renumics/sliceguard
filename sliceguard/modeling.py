@@ -1,3 +1,4 @@
+from typing import Dict
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import IsolationForest
@@ -26,6 +27,8 @@ def fit_outlier_detection_model(encoded_data: np.array):
 
 def fit_classification_regression_model(
     df: pd.DataFrame,
+    feature_types: Dict[str, str],
+    raw_feature_types: Dict[str, str],
     encoded_data: np.array,
     ys: np.array,
     task: Literal["classification", "regression"],
@@ -57,8 +60,8 @@ def fit_classification_regression_model(
 
     return y_preds, y_probs, classes
 
-def _fit_hf_model(data, task, split, train_split, label_encoder, encoded_ys):
-    pass
+def _fit_hf_model_image_classification(data, task, split, train_split, label_encoder, encoded_ys):
+    print("Fitting a model...")
 
 
 def _fit_embedding_based_model(encoded_data, task, split, train_split, time_budget, label_encoder, encoded_ys, automl_metric):

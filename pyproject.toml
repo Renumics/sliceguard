@@ -45,6 +45,7 @@ all = [
   "torch >= 2.0.1",
   "torchaudio >= 2.0.2",
   "datasets[audio,vision]>= 2.13.1",
+  "bing-image-downloader == 1.1.2",
 ]
 docs = [
     "sphinxcontrib-applehelp >= 1.0.7",

@@ -50,6 +50,8 @@ class SliceGuard:
         feature_orders: Dict[str, list] = {},
         precomputed_embeddings: Dict[str, np.array] = {},
         embedding_models: Dict[str, str] = {},
+        embedding_model_architectures: Dict[str, "transformers.PreTrainedModel"] = {}, # This is transformers.PreTrainedModel, however it is an optional dependency
+        embedding_model_outputs: Dict[str, Literal["embeddings", "probabilities", "embeddings+probabilities"]] = {},
         embedding_weights: Dict[str, float] = {},
         hf_auth_token=None,
         hf_num_proc=None,
@@ -59,8 +61,9 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=20.0,
         automl_use_full_embeddings=False,
-        automl_hf_model = "",
-        automl_hf_model_architecture = None,
+        automl_hf_model="",
+        automl_hf_model_architecture=None,
+        automl_hf_model_output_dir=None,
     ) -> List[dict]:
         """
         Find slices that are classified badly by your model.
@@ -86,8 +89,10 @@ class SliceGuard:
             that is not specified by pandas categorical ordered datatypes.
         :param precomputed_embeddings: Supply precomputed embeddings for raw columns. Form should be precomputed_embeddings={"image": image_embeddings}.
             This is especially useful if you run repeated checks on your data and you want to compute embeddings only once.
-        :param embedding_models: Supply huggingface model identifiers used for computing embeddings on specific columns.
-            Form should be embedding_models={"image": "google/vit-base-patch16-224"}.
+        :param embedding_models: Supply huggingface model identifiers or locally saved models used for computing embeddings on specific columns.
+            Format should be embedding_models={"image": "google/vit-base-patch16-224"}.
+        :param embedding_model_architectures: Supply architectures used for instantiating the models defined in embedding_models.
+        :param embedding_model_outputs: Which outputs of the embedding models supplied in embedding_models should be used for clustering? Can be "embeddings", "probabilities" or "embeddings+probabilities".
         :param embedding_weights: Specify how much each computed embedding is weighted in the cluster search. Useful to lower the influence of an embedding
             by setting the parameter lower than 1.0.
         :param hf_auth_token: The authentification token used to download embedding models from the huggingface hub.
@@ -101,6 +106,7 @@ class SliceGuard:
         :param automl_use_full_embeddings: Wether to use the raw embeddings instead of the pre-reduced ones when training a model. Can potentially improve performance.
         :param automl_hf_model: A pre-trained model that can be used instead of the default xgboost model.
         :param automl_hf_model_architecture: Model architecture used to train a model on "features". Right now supports only image classification.
+        :param automl_hf_model_output_dir: Output directory for training deep learning models via the huggingface transformers library.
         :rtype: List of issues, represented as python dicts.
         """
 
@@ -599,6 +605,8 @@ class SliceGuard:
 
             y_preds, y_probs, classes = fit_classification_regression_model(
                 df=df,
+                feature_types=feature_types,
+                raw_feature_types=raw_feature_types,
                 encoded_data=np.concatenate(X_data, axis=1)
                 if automl_use_full_embeddings
                 else encoded_data,

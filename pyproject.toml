@@ -1,6 +1,6 @@
 [project]
 name = "sliceguard"
-version = "0.0.26"
+version = "0.0.27"
 authors = [
   { name="Renumics GmbH", email="info@renumics.com"},
   { name="Daniel Klitzke", email="daniel.klitzke@renumics.com"}
@@ -29,7 +29,7 @@ dependencies = [
 [project.optional-dependencies]
 automl = [
   "flaml >= 2.0.0",
-  "xgboost >= 1.7.6",
+  "xgboost >= 1.7.6, < 2.0.0",
 ]
 embedding = [
   "transformers >= 4.30.2",
@@ -40,7 +40,7 @@ embedding = [
 ]
 all = [
   "flaml >= 2.0.0",
-  "xgboost >= 1.7.6",
+  "xgboost >= 1.7.6, < 2.0.0",
   "transformers >= 4.30.2",
   "sentence-transformers >= 2.2.1",
   "torch >= 2.0.1",

@@ -1,6 +1,6 @@
 [project]
 name = "sliceguard"
-version = "0.0.28"
+version = "0.0.29"
 authors = [
   { name="Renumics GmbH", email="info@renumics.com"},
   { name="Daniel Klitzke", email="daniel.klitzke@renumics.com"}
@@ -63,4 +63,4 @@ tutorials = [
 "Bug Tracker" = "https://github.com/Renumics/sliceguard/issues"
 
 [tool.setuptools]
-packages = ["sliceguard"]
+packages = ["sliceguard", "sliceguard.models"]

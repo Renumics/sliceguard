@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from pathlib import Path
 import pandas as pd
 import datasets
@@ -63,11 +63,12 @@ def from_huggingface(dataset_identifier: str):
 
 def create_imagedataset_from_bing(
     queries: List[str],
-    num_images=10,
-    dataset_folder="./dataset",
-    license="All Creative Commons",
-    adult_filter_off=True,
-    timeout=1,
+    num_images: int = 10,
+    dataset_folder: str = "./dataset",
+    license: str = "All Creative Commons",
+    adult_filter_off: bool = True,
+    timeout: float = 1,
+    test_split: float = None,
 ):
     """
     Download images from bing and create a folder structure that can be used with the ImageFolder dataset.
@@ -146,4 +147,10 @@ def create_imagedataset_from_bing(
         )
         df = pd.concat([df, new_images])
 
-    return df.reset_index(drop=True)
+    df = df.reset_index(drop=True)
+
+    if test_split is not None:
+        df["split"] = "train"
+        df.loc[df.sample(frac=test_split).index, "split"] = "val"
+
+    return df

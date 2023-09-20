@@ -8,7 +8,7 @@ warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 # Real imports
 from uuid import uuid4
 from pathlib import Path
-from typing import List, Literal, Dict, Callable, Optional, Tuple, Union
+from typing import List, Literal, Dict, Callable, Optional, Tuple, Union, Any
 
 import pandas as pd
 import numpy as np
@@ -260,13 +260,13 @@ class SliceGuard:
 
     def report(
         self,
-        spotlight_dtype: Dict[str, spotlight.dtypes.base.DType] = {},
+        spotlight_dtype: Dict[str, Any] = {},
         issue_portion: Optional[Union[int, float]] = None,
         non_issue_portion: Optional[Union[int, float]] = None,
         host: str = "127.0.0.1",
         port: int = "auto",
         no_browser: bool = False,
-    ) -> Tuple[pd.DataFrame, List[DataIssue], Dict[str, spotlight.dtypes.base.DType]]:
+    ) -> Tuple[pd.DataFrame, List[DataIssue], Dict[str, Any]]:
         """
         Create an interactive report on the found issues in spotlight.
 

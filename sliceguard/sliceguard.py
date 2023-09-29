@@ -7,12 +7,11 @@ warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 
 # Real imports
 from uuid import uuid4
-from typing import List, Literal, Dict, Callable
-from flaml import AutoML
+from pathlib import Path
+from typing import List, Literal, Dict, Callable, Optional, Tuple, Union, Any
 
 import pandas as pd
 import numpy as np
-import plotly.express as px
 
 from renumics import spotlight
 from renumics.spotlight.analysis.typing import DataIssue
@@ -22,79 +21,13 @@ from renumics.spotlight import layout
 from .utils import infer_feature_types, encode_normalize_features
 from .detection import generate_metric_frames, detect_issues
 from .explanation import explain_clusters
-from .modeling import fit_outlier_detection_model
-from .report import prepare_report
+from .modeling import fit_outlier_detection_model, fit_classification_regression_model
 
 
 class SliceGuard:
     """
     The main class for detecting issues in your data
     """
-
-    def show(
-        self,
-        data: pd.DataFrame,
-        features: List[str],
-        y: str = None,
-        y_pred: str = None,
-        metric: Callable = None,
-        metric_mode: Literal["min", "max"] = None,
-        drop_reference: Literal["overall", "parent"] = "overall",
-        remove_outliers: bool = False,
-        feature_types: Dict[
-            str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
-        ] = {},
-        feature_orders: Dict[str, list] = {},
-        precomputed_embeddings: Dict[str, np.array] = {},
-        embedding_models: Dict[str, str] = {},
-        hf_auth_token=None,
-        hf_num_proc=None,
-        hf_batch_size=1,
-    ):
-        """
-        Function to generate an interactive report that allows limited interactive exploration and
-        serves as starting point for detailed analysis in spotlight.
-        """
-        df = data.copy()  # assign to shorter name
-
-        print("Please wait. sliceguard is preparing your data.")
-        (
-            feature_types,
-            encoded_data,
-            mfs,
-            clustering_df,
-            clustering_cols,
-            clustering_metric_cols,
-            prereduced_embeddings,
-            raw_embeddings,
-        ) = self._prepare_data(
-            df,
-            features,
-            y,
-            y_pred,
-            metric,
-            remove_outliers,
-            feature_types=feature_types,
-            feature_orders=feature_orders,
-            precomputed_embeddings=precomputed_embeddings,
-            embedding_models=embedding_models,
-            hf_auth_token=hf_auth_token,
-            hf_num_proc=hf_num_proc,
-            hf_batch_size=hf_batch_size,
-        )
-
-        if y is None and y_pred is None and metric_mode is None:
-            metric_mode == "min"
-            print(
-                f"For outlier detection mode metric_mode will be set to {metric_mode} if not specified otherwise."
-            )
-        elif metric_mode is None:
-            metric_mode == "max"
-            print(
-                f"You didn't specify metric_mode parameter. Using {metric_mode} as default."
-            )
-
-        prepare_report(mfs, clustering_df, clustering_cols, metric_mode, drop_reference)
 
     # TODO: Introduce control features to account for expected variations
     def find_issues(
@@ -118,33 +51,82 @@ class SliceGuard:
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
-    ):
+        automl_task="classification",
+        automl_split_key=None,
+        automl_train_split=None,
+        automl_time_budget=20.0,
+        automl_use_full_embeddings=False,
+        automl_hf_model="",
+        automl_hf_model_architecture=None,
+        automl_hf_model_output_dir="./hf_model",
+        automl_hf_model_epochs=5,
+    ) -> List[dict]:
         """
         Find slices that are classified badly by your model.
 
         :param data: A pandas dataframe containing your data.
-        :param features: A list of columns that contains features to feed into your model but also metadata.
-        :param y: The column containing the ground-truth label.
-        :param y_pred: The column containing your models prediction.
+        :param features: A list of feature column names sliceguard should use for for identifying problematic data clusters.
+        :param y: Name of the dataframe column containing your ground-truth labels.
+        :param y_pred: Name of the dataframe column containing your model's predictions.
         :param metric: A callable metric function that must correspond to the form metric(y_true, y_pred) -> scikit-learn style.
-        :min_support: Minimum support for clusters that are listed as issues. If you are more looking towards outliers choose small values, if you target biases choose higher values.
-        :min_drop: Minimum metric drop a cluster has to have to be counted as issue compared to the result on the whole dataset.
-        :param metric_mode: What do you optimize your metric for? max is the right choice for accuracy while e.g. min is good for regression error.
-        :param drop_reference: Determines what is the reference value for the drop. Overall is the metric on the whole dataset, parent is the parent cluster.
-        :param remove_outliers: Account for outliers that disturb cluster detection.
-        :param feature_types: Specify how your feature should be treated in encoding and normalizing.
-        :param feature_orders: If your feature is ordinal, specify the order of that should be used for encoding. This is required for EVERY ordinal feature.
-        :param precomputed_embeddings: Supply precomputed embeddings for raw columns. E.g. if repeatedly running checks on your data.
-        :param embedding_model: Supply embedding models that should be used to compute embedding vectors from raw data.
+        :param min_support: Minimum support for a cluster to be listed as an issue.
+        :param min_drop: Minimum metric drop for a cluster to be listed as an issue.
+        :param n_slices: Number of problematic clusters find_issues should return after sorting them by a criterion specified by the "criterion" parameter.
+        :param criterion: Criterion after which the slices get sorted when using n_slices. One of drop, support or drop*support.
+        :param metric_mode: Optimization goal for your metric. max is the right choice for accuracy while e.g. min is good for regression error.
+        :param drop_reference: Reference value for calculating the drop for a cluster. Default is "overall" which calculates the difference to the overall metric.
+                "parent" will calculate the drop relative to each clusters parent cluster. Use the second option for getting more diverse results,
+                e.g., getting problematic clusters in each class when dealing with image classification instead of focussing on the most difficult class.
+        :param remove_outliers: Filter metric outliers in identified clusters. Especially useful if metric is unbounded and can heavily
+            distort a clusters overall metric. Will be significantly more computationally expensive.
+        :param feature_types: Specify the types of your features if sliceguard doesn't detect them properly. Can be "nominal", "ordinal", "numerical" for scalar values.
+            Can be "raw" for filepaths to unstructured data. Can be "embedding" for embedding vectors.
+        :param feature_orders: Specify the order of ordinal feature values that should be used for encoding. This is required for EVERY ordinal feature
+            that is not specified by pandas categorical ordered datatypes.
+        :param precomputed_embeddings: Supply precomputed embeddings for raw columns. Form should be precomputed_embeddings={"image": image_embeddings}.
+            This is especially useful if you run repeated checks on your data and you want to compute embeddings only once.
+        :param embedding_models: Supply huggingface model identifiers or locally saved models used for computing embeddings on specific columns.
+            Format should be embedding_models={"image": "google/vit-base-patch16-224"}.
+        :param embedding_weights: Specify how much each computed embedding is weighted in the cluster search. Useful to lower the influence of an embedding
+            by setting the parameter lower than 1.0.
         :param hf_auth_token: The authentification token used to download embedding models from the huggingface hub.
-        :param hf_num_proc: Multiprocessing used in audio/image preprocessing.
-        :param hf_batch_size: Batch size used in computing embeddings.
+        :param hf_num_proc: Number of processes used in embedding computation.
+        :param hf_batch_size: Batch size used for embedding computation.
+        :param automl_task: The task specification for training a model. Has to be one of classification or regression. Used when only supplying labels.
+        :param automl_split_key: Name of column used for splitting the data when sliceguard trains a model.
+        :param automl_train_split: The value used for marking the train split when sliceguard trains a model. If supplied, rest of data will be used as validation set.
+            If not supplied using crossvalidation.
+        :param automl_time_budget: The time budget used by sliceguard for training a model.
+        :param automl_use_full_embeddings: Wether to use the raw embeddings instead of the pre-reduced ones when training a model. Can potentially improve performance.
+        :param automl_hf_model: A pre-trained model that can be used instead of the default xgboost model.
+        :param automl_hf_model_architecture: Model architecture used to train a model on "features". Right now supports only image classification.
+        :param automl_hf_model_output_dir: Output directory for training deep learning models via the huggingface transformers library.
+        :param automl_hf_model_epochs: If finetuning hf model, this determines how many epochs the finetuning is going.
+        :rtype: List of issues, represented as python dicts.
         """
+
+        # If nothing is given set a default config
+        if (
+            min_drop is None
+            and min_support is None
+            and n_slices is None
+            and criterion is None
+        ):
+            n_slices = 20
+            criterion = "drop"
+        elif n_slices is not None and criterion is None:
+            criterion = "drop"
+
         self._df = data  # safe that here to not modify original dataframe accidentally
         df = data.copy()  # assign to shorter name
 
+        # also safe originally supplied parameters for y and y_pred here
+        self._y = y
+        self._y_pred = y_pred
+
         (
             feature_types,
+            raw_feature_types,
             encoded_data,
             mfs,
             clustering_df,
@@ -166,6 +148,15 @@ class SliceGuard:
             hf_auth_token=hf_auth_token,
             hf_num_proc=hf_num_proc,
             hf_batch_size=hf_batch_size,
+            automl_split_key=automl_split_key,
+            automl_train_split=automl_train_split,
+            automl_task=automl_task,
+            automl_time_budget=automl_time_budget,
+            automl_use_full_embeddings=automl_use_full_embeddings,
+            automl_hf_model=automl_hf_model,
+            automl_hf_model_architecture=automl_hf_model_architecture,
+            automl_hf_model_output_dir=automl_hf_model_output_dir,
+            automl_hf_model_epochs=automl_hf_model_epochs,
         )
 
         if len(mfs) > 0:
@@ -239,19 +230,96 @@ class SliceGuard:
         self._clustering_df = clustering_df
         self._clustering_cols = clustering_cols
         self._metric_mode = metric_mode
+        self._projection = projection
+        self._features = features
+        self._feature_types = feature_types
+        self._raw_feature_types = raw_feature_types
         self.embeddings = raw_embeddings
 
         return issues
 
-    def report(self, spotlight_dtype: Dict[str, spotlight.dtypes.base.DType] = {}):
+    def report(
+        self,
+        spotlight_dtype: Dict[str, Any] = {},
+        issue_portion: Optional[Union[int, float]] = None,
+        non_issue_portion: Optional[Union[int, float]] = None,
+        host: str = "127.0.0.1",
+        port: int = "auto",
+        no_browser: bool = False,
+    ) -> Tuple[pd.DataFrame, List[DataIssue], Dict[str, Any]]:
         """
         Create an interactive report on the found issues in spotlight.
-        :param spotlight_dtype: Define a datatype mapping for the interactive spotlight report. Will be passed to dtypes parameter of spotlight.show.
+
+        :param spotlight_dtype: Define a datatype mapping for the interactive spotlight report. Will be passed to dtypes parameter of spotlight.show. Form is spotlight_dtype={"image": spotlight.Image}.
+        :param issue_portion: The absolute or relative value of samples belonging to an issue that are shown in the report (for downsampling).
+        :param non_issue_portion: The absolute or relative value of samples not belonging to an issue that are shown in the report (for downsampling).
+        :param host: The host spotlight should be started on. Default is 127.0.0.1.
+        :param port: The port spotlight should be started on. Default is "auto".
+        :param no_browser: Do not start spotlight but just return the dataframe and issues. Useful for programmatic issue evaluation.
+        :rtype: Tuple in the format (enriched dataframe, list of spotlight DataIssues, spotlight datatype mapping dict, spotlight layout).
         """
         # Some basic checks
         assert self._issues is not None
 
         df = self._df.copy()
+
+        # Determine indices for downsampling if supplied.
+        issue_rows = []
+        for issue in self._issues:
+            issue_rows.extend(issue["rows"])
+        issue_rows = list(set(issue_rows))
+
+        non_issue_rows = np.setdiff1d(np.arange(len(df)), issue_rows)
+
+        if issue_portion is not None:
+            if isinstance(issue_portion, float):
+                issue_portion = round(min(1.0, issue_portion) * len(issue_rows))
+            elif isinstance(issue_portion, int):
+                pass  # Do nothing
+            else:
+                raise RuntimeError(
+                    "Invalid value supplied to issue_portion. Must be int or float."
+                )
+            selected_issue_rows = np.random.choice(
+                issue_rows, size=issue_portion, replace=False
+            )
+        else:
+            selected_issue_rows = issue_rows
+
+        if non_issue_portion is not None:
+            if isinstance(non_issue_portion, float):
+                non_issue_portion = round(
+                    min(1.0, non_issue_portion) * len(non_issue_rows)
+                )
+            elif isinstance(non_issue_portion, int):
+                pass  # Do nothing
+            else:
+                raise RuntimeError(
+                    "Invalid value supplied to non_issue_portion. Must be int or float."
+                )
+            selected_non_issue_rows = np.random.choice(
+                non_issue_rows, size=non_issue_portion, replace=False
+            )
+        else:
+            selected_non_issue_rows = non_issue_rows
+
+        # Downsample the dataframe
+        selected_dataframe_rows = np.sort(
+            np.concatenate((selected_issue_rows, selected_non_issue_rows)).astype(
+                int
+            )  # Do not change the order of the dataframe here. This was a hard to find bug!!! Note that also astype(int) is important in case one of the arrays is empty. Else auto converted to float.
+        )
+
+        df = df.iloc[selected_dataframe_rows]
+
+        # Insert the computed data projection if it exists.
+        # Could not be the case when dealing with one or two categorical variables as there is no hnne projection involved for computing metrics.
+        # Also if hnne fails and hdbscan is used as fallback projection will be None.
+        embedding_dtypes = {}
+
+        if self._projection is not None:
+            df["sg_projection"] = self._projection[selected_dataframe_rows].tolist()
+            embedding_dtypes["sg_projection"] = Embedding
 
         # Insert embeddings if they were computed
         embedding_dtypes = {}
@@ -263,7 +331,45 @@ class SliceGuard:
         data_issue_severity = []
         data_issues = []
         for issue in self._issues:
-            issue_rows = np.where(df.index.isin(issue["indices"]))[
+            # Note: Has to be row index not pandas index! Also note that the expression should be enough to filter out items that are not in the dataframe
+            # because of downsampling. However, take care when changing something.
+            issue_metric = issue["metric"]
+            issue_title = f"Metric: {issue_metric:.2f} | Cause: {issue['explanation'][0]['column']}"
+
+            issue_explanation = ""
+
+            num_features_explanation = 3
+
+            importance_strings = [
+                f"{x['column']}, ({x['importance']:.2f})"
+                for x in issue["explanation"][:num_features_explanation]
+                if ("column" in x and "importance" in x)
+            ]
+            if len(importance_strings) > 0:
+                issue_explanation += "Feature Importances: " + "; ".join(
+                    importance_strings
+                )
+
+            range_predicate_strings = [
+                f"{x['minimum']:.1f}  < {x['column']} < {x['maximum']:.1f}"
+                for x in issue["explanation"][:num_features_explanation]
+                if ("minimum" in x and "maximum" in x)
+            ]
+
+            mode_predicate_strings = [
+                f"{x['column']} (mode) = {x['mode']}"
+                for x in issue["explanation"][:num_features_explanation]
+                if ("mode" in x)
+            ]
+
+            predicate_strings = range_predicate_strings + mode_predicate_strings
+
+            if len(predicate_strings) > 0:
+                issue_explanation += "\n\nFeature Ranges: " + "; ".join(
+                    predicate_strings
+                )
+
+            issue_rows = np.where(np.isin(selected_dataframe_rows, issue["rows"]))[
                 0
             ].tolist()  # Note: Has to be row index not pandas index!
             issue_metric = issue["metric"]
@@ -274,6 +380,9 @@ class SliceGuard:
                 title=issue_explanation,
                 description=issue_explanation,
                 rows=issue_rows,
+                columns=[
+                    x["column"] for x in issue["explanation"][:num_features_explanation]
+                ],
             )
             data_issues.append(data_issue)
             data_issue_severity.append(issue_metric)
@@ -285,22 +394,85 @@ class SliceGuard:
         if hasattr(self, "_generated_y_pred"):
             df["sg_y_pred"] = self._generated_y_pred
 
-        spotlight.show(
-            df,
-            dtype={**spotlight_dtype, **embedding_dtypes},
-            issues=np.array(data_issues)[data_issue_order].tolist(),
-            layout=layout.layout(
+        if hasattr(self, "_generated_y_probs") and hasattr(self, "_classes"):
+            for class_idx, label in enumerate(self._classes):
+                df[f"sg_p_{label}"] = self._generated_y_probs[:, class_idx].tolist()
+
+        spotlight_issue_list = np.array(data_issues)[data_issue_order].tolist()
+
+        spotlight_dtypes = {**spotlight_dtype, **embedding_dtypes}
+
+        spotlight_inspector_fields = []
+        for col in self._features:
+            if self._feature_types[col] == "raw":
+                if self._raw_feature_types[col] == "image":
+                    spotlight_inspector_fields.append(layout.lenses.image(col))
+                elif self._raw_feature_types[col] == "audio":
+                    spotlight_inspector_fields.append(layout.lenses.audio(col))
+                    spotlight_inspector_fields.append(layout.lenses.spectrogram(col))
+                elif self._raw_feature_types[col] == "text":
+                    spotlight_inspector_fields.append(layout.lenses.text(col))
+            if (
+                self._feature_types[col] == "numerical"
+                or self._feature_types[col] == "nominal"
+                or self._feature_types[col] == "ordinal"
+            ):
+                spotlight_inspector_fields.append(layout.lenses.scalar(col))
+
+        if self._y is not None:
+            spotlight_inspector_fields.append(layout.lenses.scalar(self._y))
+
+        if self._y_pred is not None:
+            spotlight_inspector_fields.append(layout.lenses.scalar(self._y_pred))
+        else:
+            spotlight_inspector_fields.append(layout.lenses.scalar("sg_y_pred"))
+
+        spotlight_layout = layout.layout(
+            [
+                [layout.table()],
                 [
-                    [layout.table()],
-                    [layout.similaritymap()],
-                    [layout.histogram()],
+                    layout.similaritymap(
+                        columns=["sg_projection"]
+                        if self._projection is not None
+                        else None
+                    )
                 ],
-                [[layout.widgets.Inspector()], [layout.widgets.Issues()]],
-            ),
+                [
+                    layout.histogram(
+                        "Histogram",
+                        column=next(
+                            (
+                                col
+                                for col in self._features
+                                if self._feature_types[col]
+                                in ["numerical", "nominal", "ordinal"]
+                            ),
+                            None,
+                        ),
+                    )
+                ],
+            ],
+            [
+                [layout.inspector("Inspector", spotlight_inspector_fields)],
+                [layout.issues()],
+            ],
         )
+
+        if not no_browser:
+            spotlight.show(
+                df,
+                dtype=spotlight_dtypes,
+                host=host,
+                port=port,
+                issues=spotlight_issue_list,
+                layout=spotlight_layout,
+            )
         return (
-            df  # Return the create report dataframe in case caller wants to process it
-        )
+            df,
+            spotlight_issue_list,
+            spotlight_dtypes,
+            spotlight_layout,
+        )  # Return the create report dataframe in case caller wants to process it
 
     def _prepare_data(
         self,
@@ -319,6 +491,15 @@ class SliceGuard:
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
+        automl_task="classification",
+        automl_split_key=None,
+        automl_train_split=None,
+        automl_time_budget=None,
+        automl_use_full_embeddings=False,
+        automl_hf_model: str = None,
+        automl_hf_model_architecture: "transformers.PreTrainedModel" = None,
+        automl_hf_model_output_dir: Union[str, Path] = None,
+        automl_hf_model_epochs: int = 5,
     ):
         assert (
             all([(f in data.columns or f in precomputed_embeddings) for f in features])
@@ -330,8 +511,8 @@ class SliceGuard:
         df = data  # just rename the variable for shorter naming
 
         # Try to infer the column dtypes
-        feature_types = infer_feature_types(
-            features, feature_types, precomputed_embeddings, df
+        feature_types, feature_orders, raw_feature_types = infer_feature_types(
+            features, feature_types, feature_orders, precomputed_embeddings, df
         )
 
         # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant
@@ -342,6 +523,7 @@ class SliceGuard:
             features,
             feature_types,
             feature_orders,
+            raw_feature_types,
             precomputed_embeddings,
             embedding_models,
             hf_auth_token,
@@ -373,15 +555,45 @@ class SliceGuard:
 
             self._generated_y_pred = ol_scores
 
-        elif y_pred is None:
-            # Split column,
-            # Time budget train
-            # what model
-            # infer from data
-            # TODO
-            automl = AutoML()
-            automl.fit(np.array(encoded_data), df[y], task='classification')
-            y_pred = automl.predict(data[encoded_data])
+        elif mode == "automl":
+            y_pred = "sg_y_pred"
+
+            X_data = [encoded_data]
+            if automl_use_full_embeddings:
+                print(
+                    f"Using {len(list(raw_embeddings.values()))} raw embeddings in fitting. Consider increasing the time budget."
+                )
+                for v in raw_embeddings.values():
+                    X_data.append(v)
+
+            y_preds, y_probs, classes = fit_classification_regression_model(
+                df=df,
+                y_column=y,
+                feature_types=feature_types,
+                raw_feature_types=raw_feature_types,
+                encoded_data=np.concatenate(X_data, axis=1)
+                if automl_use_full_embeddings
+                else encoded_data,
+                task=automl_task,
+                split=df[automl_split_key].values
+                if automl_split_key is not None
+                else None,
+                train_split=automl_train_split,
+                time_budget=automl_time_budget,
+                hf_model=automl_hf_model,
+                hf_model_architecture=automl_hf_model_architecture,
+                hf_model_output_dir=automl_hf_model_output_dir,
+                hf_model_epochs=automl_hf_model_epochs,
+                hf_auth_token=hf_auth_token,
+            )
+
+            df[y_pred] = y_preds
+
+            if classes is not None:
+                self._classes = classes
+            if y_probs is not None:
+                self._generated_y_probs = y_probs
+            self._generated_y_pred = df[y_pred].values
 
         # Perform detection of problematic clusters based on the given features
         # 1. A hierarchical clustering is performed and metrics are calculated for all hierarchies
@@ -399,6 +611,7 @@ class SliceGuard:
 
         return (
             feature_types,
+            raw_feature_types,
             encoded_data,
             mfs,
             clustering_df,
@@ -407,30 +620,3 @@ class SliceGuard:
             prereduced_embeddings,
             raw_embeddings,
         )
-
-    def _plot_clustering_overview(self):
-        """
-        Debugging method to get an overview on the last clustering structure.
-        """
-        # for i in range(len(self._clustering_cols)):
-        # cur_clustering_cols = self._clustering_cols[:i+1]
-        cur_clustering_cols = self._clustering_cols
-        plotting_df = pd.concat((self._clustering_df, self._issue_df), axis=1)
-        plotting_df["is_issue"] = plotting_df["issue"] != -1
-        plotting_df["issue_metric_str"] = plotting_df["issue_metric"].apply(
-            lambda x: "{0:.2f}".format(x)
-            if (isinstance(x, float) or isinstance(x, np.floating)) and not np.isnan(x)
-            else ""
-        )
-        fig = px.treemap(
-            plotting_df,
-            path=cur_clustering_cols,
-            color="is_issue",
-            color_discrete_map={"(?)": "lightgrey", True: "gold", False: "darkblue"},
-            custom_data="issue_metric_str",
-        )
-        fig.data[0].texttemplate = "%{customdata[0]}"
-        fig.data[0].textinfo = "none"
-        # fig.write_image(f"clustering_{i}.png", scale=4)
-
-        fig.show()

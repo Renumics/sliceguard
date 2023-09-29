@@ -93,19 +93,19 @@ def explain_clusters(features, feature_types, issues, df, prereduced_embeddings)
         # if f1 > 0.7: # only add explanation if it is succicient to classify cluster?
         importance_strings = []
         predicates_list = []
-        for f, i in zip(ordered_features[:3], ordered_importances[:3]):
+        for f, i in zip(ordered_features, ordered_importances):
             importance_strings.append(f"{f}, ({i:.2f})")
             feature_type = feature_types[f]
+            predicate = {"column": f, "importance": i}
             if feature_type == "numerical":
                 val = df[f].iloc[issue_rows]
-                predicates_list.append(
-                    {"column": f, "minimum": val.min(), "maximum": val.max()}
-                )
-            else:
-                predicates_list.append({"column": f})
+                predicate["minimum"] = val.min()
+                predicate["maximum"] = val.max()
+            elif feature_type in ["nominal", "ordinal"]:
+                val = df[f].iloc[issue_rows]
+                predicate["mode"] = val.mode()[0]
+            predicates_list.append(predicate)
 
-        issue["explanation"] = ", ".join(importance_strings)
-
-        issue["predicates"] = predicates_list
+        issue["explanation"] = predicates_list
 
     return issues

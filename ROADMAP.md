@@ -12,8 +12,13 @@
 - [x] Support application without model (by training simple baseline model)
 - [x] Improve normalization for mixed type runs e.g. embedding + one categorical or numeric variable.
 - [x] Walthroughs for unstructured, structured and mixed data. Also, in depth tutorial explaining all the parameters.
-- [ ] Soft Dependencies for embedding computation and autml as torch and xgboost dependencies are large
+- [x] Soft Dependencies for embedding computation and autml as torch and xgboost dependencies are large
+- [ ] Per use case helpers such as find_issues_object_detection, find_issues_ts_forecasting, ...
 - [ ] Allow for model comparisons via intersection, difference, ...
+- [ ] Allow application of sliceguard on timeseries
+- [ ] Add Sliceguard deepdive notebook to show more advanced usage
+- [ ] Build sphinx docs
+- [ ] Stronger automated testing
 - [ ] Robustify outlier detection algorithm. Probably better parameter choice.
 - [ ] Interpretable features for images, audio, text. E.g., dark image, quiet audio, long audio, contains common word x, ...
 - [ ] Generation of a summary report doing predefined checks

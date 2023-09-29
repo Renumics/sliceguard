@@ -1,5 +1,4 @@
 # Embedding support for text, images, audio
-from inspect import getmembers
 from multiprocess import set_start_method
 import pandas as pd
 import datasets
@@ -11,6 +10,7 @@ def get_embedding_imports():
         from sentence_transformers import SentenceTransformer
         from transformers import AutoFeatureExtractor, AutoModel
         import torch
+        import torchaudio  # Used in AST which is default model of sliceguard
     except ImportError:
         raise Warning(
             'Optional dependency required! (pip install "sliceguard[embedding]")'

@@ -1,8 +1,14 @@
+from os.path import splitdrive
 from typing import List, Optional
 from pathlib import Path
 import pandas as pd
 import datasets
 from datasets import Image, Audio, ClassLabel, Value, Sequence
+
+from PIL.PngImagePlugin import PngImageFile
+from PIL import Image as Img
+from io import BytesIO
+import tempfile
 
 
 def _get_tutorial_imports():
@@ -15,22 +21,66 @@ def _get_tutorial_imports():
     return downloader
 
 
-def from_huggingface(dataset_identifier: str):
+def write_tempfile(data: dict):
+    with tempfile.NamedTemporaryFile(mode='w+b', delete=False) as tmp:
+        tmp.write(data['bytes'])
+        return tmp.name
+
+
+def convert_data(data: dict):
+    """
+    Catch weird edge cases, prefer raw data over path
+    """
+    if "bytes" in data and data["bytes"] is not None:
+        if len(data["bytes"]) > 0:
+            return write_tempfile(data)
+
+    if "path" in data and data["path"] is not None:
+        if data["path"] != "":
+            return data["path"]
+
+
+def is_path(data: dict):
+    if "bytes" in data and len(data["bytes"]) > 0:
+        # Prefer raw data over path which is potentially not valid
+        return False
+
+    elif "path" in data and data["path"] != "":
+        # If path is available and not empty, use path
+        return True
+
+    return False
+
+
+# Tested with the following datasets:
+# Image:
+# "mnist"
+# "ceyda/smithsonian_butterflies"
+# "GabrielVidal/dead-by-daylight-perks"
+
+# Audio:
+# "437aewuh/dog-dataset"
+# "Gae8J/modeling"
+# "ccmusic-database/piano_sound_quality"
+
+# Text:
+# "xtreme", "XNLI"
+# "indonlp/indonlu", "smsa"
+# "tweet_eval", "emoji"
+
+def from_huggingface(dataset_identifier: str, name=None, split=None):
     # Simple utility method to support loading of huggingface datasets
-    # Currently only supports image data. Use custom load function if you need something else.
-    dataset = datasets.load_dataset(dataset_identifier)
+    dataset = datasets.load_dataset(dataset_identifier, name, split)
     overall_df = None
 
-    # Iterate splits in dataset
-    # Huggingface datasets are dicts
-    # each entry is a split of the dataset.
+    # Iterate splits in dataset.
     for split in dataset.keys():
         cur_split = dataset[split]
 
         split_df = dataset[split].to_pandas()
         split_df["split"] = split
 
-        # Create a dataframe from each split
+        # Create a dataframe from each split.
         for fname, ftype in cur_split.features.items():
             if (
                 not isinstance(ftype, Image)
@@ -52,29 +102,15 @@ def from_huggingface(dataset_identifier: str):
                 class_label_lookup = {i: l for i, l in enumerate(ftype.names)}
                 split_df[fname] = split_df[fname].map(lambda x: class_label_lookup[x])
 
-            if isinstance(ftype, Image):
-                all_has_paths = all(
-                    x is not None and "path" in x for x in split_df[fname].values
-                )
-                if not all_has_paths:
-                    print(
-                        f"Column {fname} dropped. Images are not extracted onto harddrive. Currently this is not supported."
-                    )
-                    split_df = split_df.drop(columns=fname)
-                else:
-                    split_df[fname] = split_df[fname].map(lambda x: x["path"])
 
-            elif isinstance(ftype, Audio):
-                all_has_paths = all(
-                    x is not None and "path" in x for x in split_df[fname].values
-                )
-                if not all_has_paths:
-                    print(
-                        f"Column {fname} dropped. Audios are not extracted onto harddrive. Currently this is not supported."
-                    )
-                    split_df = split_df.drop(columns=fname)
+            if isinstance(ftype, Image) \
+            or isinstance(ftype, Audio):
+                if any(x is None for x in split_df[fname].values()):
+                    print("Column {fname} dropped due to None-type entries.")
+
                 else:
-                    split_df[fname] = split_df[fname].map(lambda x: x["path"])
+                    split_df[fname] = split_df[fname].map(convert_data)
+
 
         if overall_df is None:
             overall_df = split_df

@@ -67,7 +67,7 @@ def _extract_embeddings_images(model, feature_extractor, col_name="image"):
 
 
 def generate_image_embeddings(
-    image_paths,
+    data,
     model_name="google/vit-base-patch16-224",
     hf_auth_token=None,
     hf_num_proc=None,
@@ -87,8 +87,15 @@ def generate_image_embeddings(
         model_name, output_hidden_states=True, use_auth_token=hf_auth_token
     ).to(device)
 
-    df = pd.DataFrame(data={"image": image_paths})
-    dataset = datasets.Dataset.from_pandas(df).cast_column("image", datasets.Image())
+    if isinstance(data, (list, np.ndarray)):
+        df = pd.DataFrame(data={"image": data})
+        dataset = datasets.Dataset.from_pandas(df).cast_column("image", datasets.Image())
+        generation_mode = "list"
+    elif isinstance(data, datasets.Dataset):
+        dataset = data
+        generation_mode = "dataset"
+    else:
+        raise RuntimeError("Unsupported type for embedding generation.")
 
     extract_fn = _extract_embeddings_images(model, feature_extractor, "image")
 
@@ -103,16 +110,21 @@ def generate_image_embeddings(
         remove_columns="image",
     )  # batches has to be true in general, the batch size could be varied, also multiprocessing could be applied
 
-    df_updated = updated_dataset.to_pandas()
+    if generation_mode == "list":
+        df_updated = updated_dataset.to_pandas()
 
-    embeddings = np.array(
-        [
-            emb.tolist() if emb is not None else None
-            for emb in df_updated["embedding"].values
-        ]
-    )
+        embeddings = np.array(
+            [
+                emb.tolist() if emb is not None else None
+                for emb in df_updated["embedding"].values
+            ]
+        )
+        return embeddings
+    elif generation_mode == "dataset":
+        return updated_dataset
 
-    return embeddings
+
+    
 
 
 def _extract_embeddings_audios(model, feature_extractor, col_name="audio"):

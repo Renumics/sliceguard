@@ -114,19 +114,19 @@ def finetune_image_classifier(
 
 
 def generate_image_pred_probs_embeddings(
-    image_paths,
+    data,
     model_name="google/vit-base-patch16-224",
     hf_num_proc=None,
     hf_batch_size=1,
     hf_auth_token=None,
     return_embeddings=True,
 ) -> (List, List, List):
-    probs = generate_image_probabilites(
-        image_paths, model_name, None, hf_num_proc, hf_batch_size
+    prob_result = generate_image_probabilites(
+        data, model_name, None, hf_num_proc, hf_batch_size
     ).tolist()
     if return_embeddings:
-        embeddings = generate_image_embeddings(
-            image_paths, model_name, None, hf_num_proc, hf_batch_size
+        embedding_result = generate_image_embeddings(
+            data, model_name, None, hf_num_proc, hf_batch_size
         ).tolist()
     else:
         embeddings = None
@@ -164,7 +164,7 @@ def _extract_probabilities_image(model, feature_extractor, col_name="image"):
 
 
 def generate_image_probabilites(
-    image_paths,
+    data,
     model_name="google/vit-base-patch16-224",
     hf_auth_token=None,
     hf_num_proc=None,
@@ -186,8 +186,16 @@ def generate_image_probabilites(
         model_name, output_hidden_states=True, use_auth_token=hf_auth_token
     ).to(device)
 
-    df = pd.DataFrame(data={"image": image_paths})
-    dataset = datasets.Dataset.from_pandas(df).cast_column("image", datasets.Image())
+    if isinstance(data, (list, np.ndarray)):
+        df = pd.DataFrame(data={"image": data})
+        dataset = datasets.Dataset.from_pandas(df).cast_column("image", datasets.Image())
+        generation_mode = "list"
+    elif isinstance(data, datasets.Dataset):
+        dataset = data
+        generation_mode = "dataset"
+    else:
+        raise RuntimeError("Unsupported type for embedding generation.")
+
 
     extract_fn = _extract_probabilities_image(model, feature_extractor, "image")
 
@@ -202,13 +210,16 @@ def generate_image_probabilites(
         remove_columns="image",
     )  # batches has to be true in general, the batch size could be varied, also multiprocessing could be applied
 
-    df_updated = updated_dataset.to_pandas()
 
-    probabilities = np.array(
-        [
-            emb.tolist() if emb is not None else None
-            for emb in df_updated["probabilities"].values
-        ]
-    )
+    if generation_mode == "list":
+        df_updated = updated_dataset.to_pandas()
 
-    return probabilities
+        probabilities = np.array(
+            [
+                emb.tolist() if emb is not None else None
+                for emb in df_updated["probabilities"].values
+            ]
+        )
+        return probabilities
+    elif generation_mode == "dataset":
+        return updated_dataset

@@ -1,4 +1,5 @@
-from typing import List
+from multiprocessing import set_start_method
+from typing import List, Literal
 from functools import partial
 import numpy as np
 import pandas as pd
@@ -120,18 +121,26 @@ def generate_image_pred_probs_embeddings(
     hf_batch_size=1,
     hf_auth_token=None,
     return_embeddings=True,
+    return_mode: Literal["array", "dataset"] = "list",
 ) -> (List, List, List):
-    prob_result = generate_image_probabilites(
+    probs = generate_image_probabilites(
         data, model_name, None, hf_num_proc, hf_batch_size
     ).tolist()
     if return_embeddings:
-        embedding_result = generate_image_embeddings(
+        embeddings = generate_image_embeddings(
             data, model_name, None, hf_num_proc, hf_batch_size
         ).tolist()
     else:
         embeddings = None
     preds = np.argmax(probs, axis=1).tolist()
-    return preds, probs, embeddings
+    if return_mode == "list":
+        return preds, probs, embeddings
+    elif return_mode == "dataset" and isinstance(data, datasets.Dataset):
+        data.add_column("predictions", preds)
+        data.add_column("probabilities", probs)
+        data.add_column("embeddings", embeddings)
+    else:
+        raise RuntimeError("Invalid return mode.")
 
 
 def _extract_probabilities_image(model, feature_extractor, col_name="image"):
@@ -188,14 +197,13 @@ def generate_image_probabilites(
 
     if isinstance(data, (list, np.ndarray)):
         df = pd.DataFrame(data={"image": data})
-        dataset = datasets.Dataset.from_pandas(df).cast_column("image", datasets.Image())
-        generation_mode = "list"
+        dataset = datasets.Dataset.from_pandas(df).cast_column(
+            "image", datasets.Image()
+        )
     elif isinstance(data, datasets.Dataset):
         dataset = data
-        generation_mode = "dataset"
     else:
         raise RuntimeError("Unsupported type for embedding generation.")
-
 
     extract_fn = _extract_probabilities_image(model, feature_extractor, "image")
 
@@ -210,16 +218,12 @@ def generate_image_probabilites(
         remove_columns="image",
     )  # batches has to be true in general, the batch size could be varied, also multiprocessing could be applied
 
+    df_updated = updated_dataset.to_pandas()
 
-    if generation_mode == "list":
-        df_updated = updated_dataset.to_pandas()
-
-        probabilities = np.array(
-            [
-                emb.tolist() if emb is not None else None
-                for emb in df_updated["probabilities"].values
-            ]
-        )
-        return probabilities
-    elif generation_mode == "dataset":
-        return updated_dataset
+    probabilities = np.array(
+        [
+            emb.tolist() if emb is not None else None
+            for emb in df_updated["probabilities"].values
+        ]
+    )
+    return probabilities

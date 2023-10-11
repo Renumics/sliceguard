@@ -89,11 +89,11 @@ def generate_image_embeddings(
 
     if isinstance(data, (list, np.ndarray)):
         df = pd.DataFrame(data={"image": data})
-        dataset = datasets.Dataset.from_pandas(df).cast_column("image", datasets.Image())
-        generation_mode = "list"
+        dataset = datasets.Dataset.from_pandas(df).cast_column(
+            "image", datasets.Image()
+        )
     elif isinstance(data, datasets.Dataset):
         dataset = data
-        generation_mode = "dataset"
     else:
         raise RuntimeError("Unsupported type for embedding generation.")
 
@@ -110,21 +110,15 @@ def generate_image_embeddings(
         remove_columns="image",
     )  # batches has to be true in general, the batch size could be varied, also multiprocessing could be applied
 
-    if generation_mode == "list":
-        df_updated = updated_dataset.to_pandas()
+    df_updated = updated_dataset.to_pandas()
 
-        embeddings = np.array(
-            [
-                emb.tolist() if emb is not None else None
-                for emb in df_updated["embedding"].values
-            ]
-        )
-        return embeddings
-    elif generation_mode == "dataset":
-        return updated_dataset
-
-
-    
+    embeddings = np.array(
+        [
+            emb.tolist() if emb is not None else None
+            for emb in df_updated["embedding"].values
+        ]
+    )
+    return embeddings
 
 
 def _extract_embeddings_audios(model, feature_extractor, col_name="audio"):

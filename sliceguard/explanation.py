@@ -103,7 +103,7 @@ def explain_clusters(features, feature_types, issues, df, prereduced_embeddings)
                 predicate["maximum"] = val.max()
             elif feature_type in ["nominal", "ordinal"]:
                 val = df[f].iloc[issue_rows]
-                predicate["mode"] = val.mode()[0]
+                predicate["mode"] = val.mode()
             predicates_list.append(predicate)
 
         issue["explanation"] = predicates_list

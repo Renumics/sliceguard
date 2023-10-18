@@ -22,8 +22,8 @@ def _get_tutorial_imports():
 
 
 def write_tempfile(data: dict):
-    with tempfile.NamedTemporaryFile(mode='w+b', delete=False) as tmp:
-        tmp.write(data['bytes'])
+    with tempfile.NamedTemporaryFile(mode="w+b", delete=False) as tmp:
+        tmp.write(data["bytes"])
         return tmp.name
 
 
@@ -68,6 +68,7 @@ def is_path(data: dict):
 # "indonlp/indonlu", "smsa"
 # "tweet_eval", "emoji"
 
+
 def from_huggingface(dataset_identifier: str, name=None, split=None):
     # Simple utility method to support loading of huggingface datasets
     dataset = datasets.load_dataset(dataset_identifier, name, split)
@@ -95,22 +96,21 @@ def from_huggingface(dataset_identifier: str, name=None, split=None):
                 )
 
             if isinstance(ftype, list):
-                print(f"Column {fname} with type {ftype} dropped. Lists are currently not supported.")
+                print(
+                    f"Column {fname} with type {ftype} dropped. Lists are currently not supported."
+                )
 
             # Run transformations for specific data types if needed.
             if isinstance(ftype, ClassLabel):
                 class_label_lookup = {i: l for i, l in enumerate(ftype.names)}
                 split_df[fname] = split_df[fname].map(lambda x: class_label_lookup[x])
 
-
-            if isinstance(ftype, Image) \
-            or isinstance(ftype, Audio):
-                if any(x is None for x in split_df[fname].values()):
+            if isinstance(ftype, Image) or isinstance(ftype, Audio):
+                if any(x is None for x in split_df[fname].values):
                     print("Column {fname} dropped due to None-type entries.")
 
                 else:
                     split_df[fname] = split_df[fname].map(convert_data)
-
 
         if overall_df is None:
             overall_df = split_df

@@ -13,6 +13,7 @@ from typing import List, Literal, Dict, Callable, Optional, Tuple, Union, Any
 import pandas as pd
 import numpy as np
 
+
 from renumics import spotlight
 from renumics.spotlight.analysis.typing import DataIssue
 from renumics.spotlight import Embedding
@@ -39,6 +40,8 @@ class SliceGuard:
         metric: Callable = None,
         min_support: int = None,
         min_drop: float = None,
+        n_slices: int = None,
+        criterion: Literal["drop", "support", "drop*support"] = None,
         metric_mode: Literal["min", "max"] = None,
         drop_reference: Literal["overall", "parent"] = "overall",
         remove_outliers: bool = False,
@@ -48,6 +51,7 @@ class SliceGuard:
         feature_orders: Dict[str, list] = {},
         precomputed_embeddings: Dict[str, np.array] = {},
         embedding_models: Dict[str, str] = {},
+        embedding_weights: Dict[str, float] = {},
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
@@ -128,6 +132,7 @@ class SliceGuard:
             feature_types,
             raw_feature_types,
             encoded_data,
+            projection,
             mfs,
             clustering_df,
             clustering_cols,
@@ -145,6 +150,7 @@ class SliceGuard:
             feature_orders=feature_orders,
             precomputed_embeddings=precomputed_embeddings,
             embedding_models=embedding_models,
+            embedding_weights=embedding_weights,
             hf_auth_token=hf_auth_token,
             hf_num_proc=hf_num_proc,
             hf_batch_size=hf_batch_size,
@@ -164,19 +170,26 @@ class SliceGuard:
             print(f"The overall metric value is {overall_metric}")
 
         if y is None and y_pred is None and metric_mode is None:
-            metric_mode == "min"
+            metric_mode = "min"
             print(
                 f"For outlier detection mode metric_mode will be set to {metric_mode} if not specified otherwise."
             )
 
-        elif y_pred is None:
-            print('TODO find issue case for y given and y_pred not.')
-
+        elif y_pred is None and metric_mode is None:
+            if automl_task == "classification":
+                metric_mode = "max"
+            elif automl_task == "regression":
+                metric_mode = "min"
+            print(
+                f"You didn't specify metric_mode. For task {automl_task} using {metric_mode} as a default."
+            )
         elif metric_mode is None:
-            metric_mode == "max"
+            metric_mode = "max"
             print(
                 f"You didn't specify metric_mode parameter. Using {metric_mode} as default."
             )
+
+        assert metric_mode is not None
 
         group_dfs = detect_issues(
             mfs,
@@ -184,6 +197,8 @@ class SliceGuard:
             clustering_cols,
             min_drop,
             min_support,
+            n_slices,
+            criterion,
             metric_mode,
             drop_reference,
             remove_outliers,
@@ -193,7 +208,7 @@ class SliceGuard:
 
         print(f"Identified {num_issues} problematic slices.")
 
-        # Construct the issue dataframe that is returned by this method
+        # Construct the issue list that is returned by this method
         issues = []
 
         issue_index = 0
@@ -205,14 +220,19 @@ class SliceGuard:
             hierarchy_issues = group_df[group_df["issue"] == True].index
             for issue in hierarchy_issues:
                 current_issue = {"id": issue_index, "level": hierarchy_level}
+
                 issue_indices = clustering_df[
                     clustering_df[clustering_col] == issue
                 ].index.values
                 current_issue["indices"] = issue_indices
 
+                issue_rows = np.where(clustering_df[clustering_col] == issue)[0]
+                current_issue["rows"] = issue_rows
+
                 issue_metric = clustering_df[clustering_df[clustering_col] == issue][
                     clustering_metric_col
                 ].values[0]
+
                 current_issue["metric"] = issue_metric
 
                 issues.append(current_issue)
@@ -322,10 +342,11 @@ class SliceGuard:
             embedding_dtypes["sg_projection"] = Embedding
 
         # Insert embeddings if they were computed
-        embedding_dtypes = {}
         for embedding_col, embeddings in self.embeddings.items():
             report_col_name = f"sg_emb_{embedding_col}"
-            df[report_col_name] = [e.tolist() for e in embeddings]
+            df[report_col_name] = np.array([e.tolist() for e in embeddings])[
+                selected_dataframe_rows
+            ].tolist()
             embedding_dtypes[report_col_name] = Embedding
 
         data_issue_severity = []
@@ -371,13 +392,11 @@ class SliceGuard:
 
             issue_rows = np.where(np.isin(selected_dataframe_rows, issue["rows"]))[
                 0
-            ].tolist()  # Note: Has to be row index not pandas index!
-            issue_metric = issue["metric"]
-            issue_explanation = f"{issue_metric:.2f} -> " + issue["explanation"]
+            ].tolist()
 
             data_issue = DataIssue(
                 severity="medium",
-                title=issue_explanation,
+                title=issue_title,
                 description=issue_explanation,
                 rows=issue_rows,
                 columns=[
@@ -392,7 +411,7 @@ class SliceGuard:
             data_issue_order = data_issue_order[::-1]
 
         if hasattr(self, "_generated_y_pred"):
-            df["sg_y_pred"] = self._generated_y_pred
+            df["sg_y_pred"] = self._generated_y_pred[selected_dataframe_rows]
 
         if hasattr(self, "_generated_y_probs") and hasattr(self, "_classes"):
             for class_idx, label in enumerate(self._classes):
@@ -488,6 +507,7 @@ class SliceGuard:
         feature_orders: Dict[str, list] = {},
         precomputed_embeddings: Dict[str, np.array] = {},
         embedding_models: Dict[str, str] = {},
+        embedding_weights: Dict[str, float] = {},
         hf_auth_token=None,
         hf_num_proc=None,
         hf_batch_size=1,
@@ -504,9 +524,16 @@ class SliceGuard:
         assert (
             all([(f in data.columns or f in precomputed_embeddings) for f in features])
         ) and (
-            ((y_pred is not None) and (y is not None))  # Completly supervised case
-            or ((y_pred is None))
-        )  # Completely unsupervised case (outlier based)  # check presence of all columns
+            (
+                (y_pred is not None) and (y is not None) and (metric is not None)
+            )  # Completly supervised case
+            or (
+                (y_pred is None) and (y is not None) and (metric is not None)
+            )  # fit own model
+            or (
+                (y_pred is None) and (y is None) and (metric is None)
+            )  # Completely unsupervised case (outlier based)
+        )
 
         df = data  # just rename the variable for shorter naming
 
@@ -518,6 +545,17 @@ class SliceGuard:
         # TODO: Potentially also explicitely check for univariate and bivariate fairness issues, however start with the more generic variant
         # See also connection with full report functionality. It makes sense to habe a feature and a samples based view!
 
+        run_mode = None
+
+        if y is None and y_pred is None:
+            mode = "outlier"
+        elif y_pred is None:
+            mode = "automl"
+        elif y is not None and y_pred is not None:
+            mode = "native"
+        else:
+            raise RuntimeError("Could not determine run mode.")
+
         # Encode the features for clustering according to inferred types
         encoded_data, prereduced_embeddings, raw_embeddings = encode_normalize_features(
             features,
@@ -526,20 +564,26 @@ class SliceGuard:
             raw_feature_types,
             precomputed_embeddings,
             embedding_models,
+            embedding_weights,
             hf_auth_token,
             hf_num_proc,
             hf_batch_size,
             df,
+            mode,
         )
 
         # If y and y_pred are non use an outlier detection algorithm to detect potential issues in the data.
-        # Lateron there could be also a case where y is given but no y_pred is given. Then just train a task specific surrogate model.
-        # However, besides regression and classification cases this could be much work. Consider using FLAML or other automl tooling here.
-        if y is None and y_pred is None:
+        # If y is given but no y_pred is given just train a task specific surrogate model.
+        # Currently only classification and regression are supported.
+        if mode == "outlier":
             print(
                 "You didn't supply ground-truth labels and predictions. Will fit outlier detection model to find anomal slices instead."
             )
-            ol_scores = fit_outlier_detection_model(encoded_data)
+            ol_scores = fit_outlier_detection_model(
+                np.concatenate((encoded_data, raw_embeddings), axis=1)
+                if automl_use_full_embeddings
+                else encoded_data,
+            )
             ol_model_id = str(uuid4())
 
             y = f"{ol_model_id}_y"
@@ -601,6 +645,7 @@ class SliceGuard:
         # 3. the reason for the problem e.g. feature combination or rule that is characteristic for the cluster is determined.
 
         (
+            projection,
             mfs,
             clustering_df,
             clustering_cols,
@@ -613,6 +658,7 @@ class SliceGuard:
             feature_types,
             raw_feature_types,
             encoded_data,
+            projection,
             mfs,
             clustering_df,
             clustering_cols,

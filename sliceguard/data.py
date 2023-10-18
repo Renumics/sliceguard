@@ -96,6 +96,7 @@ def from_huggingface(dataset_identifier: str, name=None, split=None):
                 )
 
             if isinstance(ftype, list):
+                split_df = split_df.drop(columns=fname)
                 print(
                     f"Column {fname} with type {ftype} dropped. Lists are currently not supported."
                 )

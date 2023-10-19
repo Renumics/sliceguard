@@ -1,16 +1,10 @@
 from os import PathLike, rename
-from os.path import splitdrive
-from typing import List, Optional
+from typing import List
 from pathlib import Path
 import pandas as pd
 import datasets
 from datasets import Image, Audio, ClassLabel, Value, Sequence
 import uuid
-
-from PIL.PngImagePlugin import PngImageFile
-from PIL import Image as Img
-from io import BytesIO
-import tempfile
 
 
 def _get_tutorial_imports():
@@ -72,7 +66,7 @@ def convert_data(data: dict, suffix: str, data_dir: PathLike):
 # "tweet_eval", "emoji"
 
 
-def from_huggingface(dataset_identifier: str, name=None, split=None, extract_dir="./"):
+def from_huggingface(dataset_identifier: str, name=None, split=None, extract_dir="./sliceguard_tmp"):
     # Simple utility method to support loading of huggingface datasets
     dataset = datasets.load_dataset(dataset_identifier, name, split)
     overall_df = None

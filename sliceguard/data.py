@@ -1,9 +1,11 @@
+from os import PathLike, rename
 from os.path import splitdrive
 from typing import List, Optional
 from pathlib import Path
 import pandas as pd
 import datasets
 from datasets import Image, Audio, ClassLabel, Value, Sequence
+import uuid
 
 from PIL.PngImagePlugin import PngImageFile
 from PIL import Image as Img
@@ -21,35 +23,36 @@ def _get_tutorial_imports():
     return downloader
 
 
-def write_tempfile(data: dict):
-    with tempfile.NamedTemporaryFile(mode="w+b", delete=False) as tmp:
+def write_file(data: dict, suffix: str, data_dir: PathLike):
+    with open(f"{data_dir}/{uuid.uuid4().hex}.{suffix}", "wb") as tmp:
         tmp.write(data["bytes"])
         return tmp.name
 
 
-def convert_data(data: dict):
+def convert_audio(data: dict, data_dir: PathLike):
+    return convert_data(data, 'wav', data_dir)
+
+
+def convert_image(data: dict, data_dir: PathLike):
+    return convert_data(data, 'png', data_dir)
+
+
+def convert_data(data: dict, suffix: str, data_dir: PathLike):
     """
-    Catch weird edge cases, prefer raw data over path
+    Prefer raw data over path
     """
-    if "bytes" in data and data["bytes"] is not None:
-        if len(data["bytes"]) > 0:
-            return write_tempfile(data)
+    if "bytes" in data and data['bytes'] is not None:
+        if len(data['bytes']) > 0:
+            return write_file(data, suffix, data_dir)
 
-    if "path" in data and data["path"] is not None:
-        if data["path"] != "":
-            return data["path"]
+    if "path" in data and data['path'] is not None:
+        if data['path'] != "":
+            new_path = f"{data['path']}.{suffix}"
 
+            # In case of missing file extension
+            rename(data['path'], new_path)
 
-def is_path(data: dict):
-    if "bytes" in data and len(data["bytes"]) > 0:
-        # Prefer raw data over path which is potentially not valid
-        return False
-
-    elif "path" in data and data["path"] != "":
-        # If path is available and not empty, use path
-        return True
-
-    return False
+            return new_path
 
 
 # Tested with the following datasets:
@@ -69,7 +72,7 @@ def is_path(data: dict):
 # "tweet_eval", "emoji"
 
 
-def from_huggingface(dataset_identifier: str, name=None, split=None):
+def from_huggingface(dataset_identifier: str, name=None, split=None, extract_dir="./"):
     # Simple utility method to support loading of huggingface datasets
     dataset = datasets.load_dataset(dataset_identifier, name, split)
     overall_df = None
@@ -106,12 +109,17 @@ def from_huggingface(dataset_identifier: str, name=None, split=None):
                 class_label_lookup = {i: l for i, l in enumerate(ftype.names)}
                 split_df[fname] = split_df[fname].map(lambda x: class_label_lookup[x])
 
-            if isinstance(ftype, Image) or isinstance(ftype, Audio):
+            if isinstance(ftype, Image):
                 if any(x is None for x in split_df[fname].values):
-                    print("Column {fname} dropped due to None-type entries.")
-
+                    print("Image column {fname} dropped due to None-type entries.")
                 else:
-                    split_df[fname] = split_df[fname].map(convert_data)
+                    split_df[fname] = split_df[fname].map(lambda x: convert_image(x, extract_dir))
+
+            elif isinstance(ftype, Audio):
+                if any(x is None for x in split_df[fname].values):
+                    print("Audio column {fname} dropped due to None-type entries.")
+                else:
+                    split_df[fname] = split_df[fname].map(lambda x: convert_audio(x, extract_dir))
 
         if overall_df is None:
             overall_df = split_df

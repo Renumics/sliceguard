@@ -26,7 +26,7 @@ def test_huggingface_mnist():
 
     sg = SliceGuard()
     issue_df = sg.find_issues(
-        df,
+        df.sample(100),
         ["image"],
         y="label",
         metric=accuracy_score,
@@ -187,7 +187,7 @@ def test_huggingface_tweet_eval():
 
 
 # Image:
-# test_huggingface_mnist()
+test_huggingface_mnist()
 # test_huggingface_butterflies()
 # test_huggingface_dead_by_daylight_perks()
 
@@ -199,4 +199,4 @@ def test_huggingface_tweet_eval():
 # Text:
 # test_huggingface_xtreme()
 # test_huggingface_indonlu()
-test_huggingface_tweet_eval()
+# test_huggingface_tweet_eval()

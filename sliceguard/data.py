@@ -11,6 +11,7 @@ from PIL.PngImagePlugin import PngImageFile
 from PIL import Image as Img
 from io import BytesIO
 import tempfile
+import puremagic
 
 
 def _get_tutorial_imports():
@@ -23,31 +24,25 @@ def _get_tutorial_imports():
     return downloader
 
 
-def write_file(data: dict, suffix: str, data_dir: PathLike):
-    with open(f"{data_dir}/{uuid.uuid4().hex}.{suffix}", "wb") as tmp:
+def write_file(data: dict, suffix: str, data_dir: str):
+    with open(f"{data_dir}/{uuid.uuid4().hex}{suffix}", "wb") as tmp:
         tmp.write(data["bytes"])
         return tmp.name
 
 
-def convert_audio(data: dict, data_dir: PathLike):
-    return convert_data(data, 'wav', data_dir)
-
-
-def convert_image(data: dict, data_dir: PathLike):
-    return convert_data(data, 'png', data_dir)
-
-
-def convert_data(data: dict, suffix: str, data_dir: PathLike):
+def convert_data(data: dict, data_dir: str):
     """
     Prefer raw data over path
     """
     if "bytes" in data and data['bytes'] is not None:
         if len(data['bytes']) > 0:
+            suffix = puremagic.from_string(data['bytes'])
             return write_file(data, suffix, data_dir)
 
     if "path" in data and data['path'] is not None:
         if data['path'] != "":
-            new_path = f"{data['path']}.{suffix}"
+            suffix = puremagic.from_file(data['path'])
+            new_path = f"{data['path']}{suffix}"
 
             # In case of missing file extension
             rename(data['path'], new_path)
@@ -72,10 +67,13 @@ def convert_data(data: dict, suffix: str, data_dir: PathLike):
 # "tweet_eval", "emoji"
 
 
-def from_huggingface(dataset_identifier: str, name=None, split=None, extract_dir="./"):
+def from_huggingface(dataset_identifier: str, name=None, split=None, extract_dir="./data"):
     # Simple utility method to support loading of huggingface datasets
     dataset = datasets.load_dataset(dataset_identifier, name, split)
     overall_df = None
+
+    # Create missing directories if non-existent
+    Path(extract_dir).mkdir(parents=True, exist_ok=True)
 
     # Iterate splits in dataset.
     for split in dataset.keys():
@@ -109,17 +107,11 @@ def from_huggingface(dataset_identifier: str, name=None, split=None, extract_dir
                 class_label_lookup = {i: l for i, l in enumerate(ftype.names)}
                 split_df[fname] = split_df[fname].map(lambda x: class_label_lookup[x])
 
-            if isinstance(ftype, Image):
+            if isinstance(ftype, Image) or isinstance(ftype, Audio):
                 if any(x is None for x in split_df[fname].values):
-                    print("Image column {fname} dropped due to None-type entries.")
+                    print("Column {fname} dropped due to None-type entries.")
                 else:
-                    split_df[fname] = split_df[fname].map(lambda x: convert_image(x, extract_dir))
-
-            elif isinstance(ftype, Audio):
-                if any(x is None for x in split_df[fname].values):
-                    print("Audio column {fname} dropped due to None-type entries.")
-                else:
-                    split_df[fname] = split_df[fname].map(lambda x: convert_audio(x, extract_dir))
+                    split_df[fname] = split_df[fname].map(lambda x: convert_data(x, extract_dir))
 
         if overall_df is None:
             overall_df = split_df

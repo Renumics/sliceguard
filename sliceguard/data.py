@@ -1,6 +1,5 @@
 from os import PathLike, rename
-from os.path import splitdrive
-from typing import List, Optional
+from typing import List
 from pathlib import Path
 import pandas as pd
 import datasets
@@ -12,7 +11,6 @@ from PIL import Image as Img
 from io import BytesIO
 import tempfile
 import puremagic
-
 
 def _get_tutorial_imports():
     try:
@@ -67,7 +65,7 @@ def convert_data(data: dict, data_dir: str):
 # "tweet_eval", "emoji"
 
 
-def from_huggingface(dataset_identifier: str, name=None, split=None, extract_dir="./data"):
+def from_huggingface(dataset_identifier: str, name=None, split=None, extract_dir="./sliceguard_tmp"):
     # Simple utility method to support loading of huggingface datasets
     dataset = datasets.load_dataset(dataset_identifier, name, split)
     overall_df = None

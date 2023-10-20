@@ -1,15 +1,10 @@
-from os import PathLike, rename
+from os import rename
 from typing import List
 from pathlib import Path
 import pandas as pd
 import datasets
 from datasets import Image, Audio, ClassLabel, Value, Sequence
 import uuid
-
-from PIL.PngImagePlugin import PngImageFile
-from PIL import Image as Img
-from io import BytesIO
-import tempfile
 import puremagic
 
 def _get_tutorial_imports():

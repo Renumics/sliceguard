@@ -21,8 +21,9 @@ dependencies = [
   "scikit-learn >= 1.2.2",
   "umap-learn >= 0.5.3",
   "tqdm >= 4.65.0",
-  "renumics-spotlight == 1.4.0rc2",
+  "renumics-spotlight >= 1.5.3",
   "datasets >= 2.13.1",
+  "puremagic >= 1.15"
 ]
 
 [project.optional-dependencies]

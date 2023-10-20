@@ -2,8 +2,11 @@
 import warnings
 from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
 
+# Ignore warnings caused by dependency umap-learn
 warnings.simplefilter("ignore", category=NumbaDeprecationWarning)
 warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
+# For now ignore warnings caused by dependency fairlearn. Remove once they address Pandas 2.0
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Real imports
 from uuid import uuid4

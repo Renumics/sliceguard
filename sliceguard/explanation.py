@@ -103,7 +103,13 @@ def explain_clusters(features, feature_types, issues, df, prereduced_embeddings)
                 predicate["maximum"] = val.max()
             elif feature_type in ["nominal", "ordinal"]:
                 val = df[f].iloc[issue_rows]
-                predicate["mode"] = val.mode()[0]
+                feature_mode = val.mode()
+                if len(feature_mode) == 0:
+                    predicate["mode"] = "no mode"
+                elif len(feature_mode == 1):
+                    predicate["mode"] = feature_mode[0]
+                else:
+                    raise RuntimeError("Invalid value encountered when calculating feature mode.")
             predicates_list.append(predicate)
 
         issue["explanation"] = predicates_list

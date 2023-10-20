@@ -322,7 +322,7 @@ def detect_issues(
     marked_issue_idx = 0
     for idx, row in all_groups_df.iterrows():
         if row["issue"] == True:
-            group_dfs[int(row["level"])].loc[idx] = True
+            group_dfs[int(row["level"])].loc[idx, "issue"] = True
 
             marked_issue_idx += 1
             if n_slices is not None and marked_issue_idx >= n_slices:

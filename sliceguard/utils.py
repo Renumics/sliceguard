@@ -282,7 +282,6 @@ def encode_normalize_features(
                     num_dimensions,
                 ),  # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normalization.
                 # min_dist=0.0,
-                random_state=42,
                 set_op_mix_ratio=op_mix_ratio_prereduction,
             ).fit_transform(embeddings)
 

@@ -1,9 +1,11 @@
-from typing import List, Optional
+from os import rename
+from typing import List
 from pathlib import Path
 import pandas as pd
 import datasets
-from datasets import Image, ClassLabel, Value, Sequence
-
+from datasets import Image, Audio, ClassLabel, Value, Sequence
+import uuid
+import puremagic
 
 def _get_tutorial_imports():
     try:
@@ -15,43 +17,94 @@ def _get_tutorial_imports():
     return downloader
 
 
-def from_huggingface(dataset_identifier: str):
+def write_file(data: dict, suffix: str, data_dir: str):
+    with open(f"{data_dir}/{uuid.uuid4().hex}{suffix}", "wb") as tmp:
+        tmp.write(data["bytes"])
+        return tmp.name
+
+
+def convert_data(data: dict, data_dir: str):
+    """
+    Prefer raw data over path
+    """
+    if "bytes" in data and data['bytes'] is not None:
+        if len(data['bytes']) > 0:
+            suffix = puremagic.from_string(data['bytes'])
+            return write_file(data, suffix, data_dir)
+
+    if "path" in data and data['path'] is not None:
+        if data['path'] != "":
+            suffix = puremagic.from_file(data['path'])
+            new_path = f"{data['path']}{suffix}"
+
+            # In case of missing file extension
+            rename(data['path'], new_path)
+
+            return new_path
+
+
+# Tested with the following datasets:
+# Image:
+# "mnist"
+# "ceyda/smithsonian_butterflies"
+# "GabrielVidal/dead-by-daylight-perks"
+
+# Audio:
+# "437aewuh/dog-dataset"
+# "Gae8J/modeling"
+# "ccmusic-database/piano_sound_quality"
+
+# Text:
+# "xtreme", "XNLI"
+# "indonlp/indonlu", "smsa"
+# "tweet_eval", "emoji"
+
+
+def from_huggingface(dataset_identifier: str, name=None, split=None, extract_dir="./sliceguard_tmp"):
     # Simple utility method to support loading of huggingface datasets
-    # Currently only supports image data. Use custom load function if you need something else.
-    dataset = datasets.load_dataset(dataset_identifier)
+    dataset = datasets.load_dataset(dataset_identifier, name, split)
     overall_df = None
+
+    # Create missing directories if non-existent
+    Path(extract_dir).mkdir(parents=True, exist_ok=True)
+
+    # Iterate splits in dataset.
     for split in dataset.keys():
         cur_split = dataset[split]
 
         split_df = dataset[split].to_pandas()
         split_df["split"] = split
 
+        # Create a dataframe from each split.
         for fname, ftype in cur_split.features.items():
             if (
                 not isinstance(ftype, Image)
+                and not isinstance(ftype, Audio)
                 and not isinstance(ftype, ClassLabel)
                 and not isinstance(ftype, Value)
+                and not isinstance(ftype, list)
                 and not isinstance(ftype, Sequence)
             ):
                 raise RuntimeError(
                     f"Found unsupported datatype {ftype}. Use custom load function."
                 )
+
+            if isinstance(ftype, list):
+                split_df = split_df.drop(columns=fname)
+                print(
+                    f"Column {fname} with type {ftype} dropped. Lists are currently not supported."
+                )
+
             # Run transformations for specific data types if needed.
             if isinstance(ftype, ClassLabel):
                 class_label_lookup = {i: l for i, l in enumerate(ftype.names)}
                 split_df[fname] = split_df[fname].map(lambda x: class_label_lookup[x])
 
-            if isinstance(ftype, Image):
-                all_has_paths = all(
-                    x is not None and "path" in x for x in split_df[fname].values
-                )
-                if not all_has_paths:
-                    print(
-                        f"Column {fname} dropped. Images are not extracted onto harddrive. Currently this is not supported."
-                    )
-                    split_df = split_df.drop(columns=fname)
+            if isinstance(ftype, Image) or isinstance(ftype, Audio):
+                if any(x is None for x in split_df[fname].values):
+                    print("Column {fname} dropped due to None-type entries.")
                 else:
-                    split_df[fname] = split_df[fname].map(lambda x: x["path"])
+                    split_df[fname] = split_df[fname].map(lambda x: convert_data(x, extract_dir))
 
         if overall_df is None:
             overall_df = split_df

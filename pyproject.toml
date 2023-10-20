@@ -1,6 +1,6 @@
 [project]
 name = "sliceguard"
-version = "0.0.30"
+version = "0.0.31"
 authors = [
   { name="Renumics GmbH", email="info@renumics.com"},
   { name="Daniel Klitzke", email="daniel.klitzke@renumics.com"}
@@ -23,7 +23,7 @@ dependencies = [
   "tqdm >= 4.65.0",
   "renumics-spotlight >= 1.5.3",
   "datasets >= 2.13.1",
-  "puremagic >= 1.15"
+  "puremagic >= 1.15",
 ]
 
 [project.optional-dependencies]

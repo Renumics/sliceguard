@@ -58,6 +58,7 @@ def fit_classification_regression_model(
     else:
         encoded_ys = df[y_column].values
         num_classes = None
+        label_encoder = None
         automl_metric = "mse"
 
     if (

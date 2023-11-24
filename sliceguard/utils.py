@@ -152,6 +152,8 @@ def encode_normalize_features(
     :param precomputed_embeddings: Precomputed embeddings that the user might supply.
     :param df: The dataframe containing all the data.
     """
+
+    feature_transformation_pipelines = {} # Save all the transformations to convert features in order to be able to predict lateron.
     encoded_data = np.zeros((len(df), 0))
     prereduced_embeddings = {}
     raw_embeddings = {}
@@ -160,15 +162,19 @@ def encode_normalize_features(
         if feature_type == "numerical":
             # TODO: Think about proper scaling method. Intuition here is to preserve outliers,
             # however the range of the data can possibly dominate one hot and ordinal encoded features.
-            normalized_data = RobustScaler(quantile_range=(2.5, 97.5)).fit_transform(
+            scaler = RobustScaler(quantile_range=(2.5, 97.5))
+            normalized_data = scaler.fit_transform(
                 df[col].values.reshape(-1, 1)
             )
+            feature_transformation_pipelines[col] = scaler
 
             encoded_data = np.concatenate((encoded_data, normalized_data), axis=1)
         elif feature_type == "nominal":
-            one_hot_data = OneHotEncoder(sparse_output=False).fit_transform(
+            oh_encoder =  OneHotEncoder(sparse_output=False, handle_unknown="infrequent_if_exist")
+            one_hot_data = oh_encoder.fit_transform(
                 df[col].values.reshape(-1, 1)
             )
+            feature_transformation_pipelines[col] = oh_encoder
             # TODO: Should one hot encoded data be further normalized? Max distance is 1.41. Should this be 1?
             # Also how is the ordinal data doing. Currently compressed to 0-1. This might be not good.
             encoded_data = np.concatenate((encoded_data, one_hot_data), axis=1)
@@ -184,9 +190,11 @@ def encode_normalize_features(
                 raise RuntimeError(
                     f"For ordinal features EACH category has to occur in the specified order. Missing {category_difference}."
                 )
-            ordinal_data = OrdinalEncoder(categories=[feature_order]).fit_transform(
+            od_encoder = OrdinalEncoder(categories=[feature_order])
+            ordinal_data = od_encoder.fit_transform(
                 df[col].values.reshape(-1, 1)
             )
+            feature_transformation_pipelines[col] = od_encoder
             ordinal_data = ordinal_data / (
                 len(feature_order) - 1
             )  # normalize with unique category count to make compatible with range of one hot encoding
@@ -318,4 +326,4 @@ def encode_normalize_features(
                 "Encountered unknown feature type when encoding and normalizing features."
             )
 
-    return encoded_data, prereduced_embeddings, raw_embeddings
+    return encoded_data, prereduced_embeddings, raw_embeddings, feature_transformation_pipelines

@@ -6,7 +6,7 @@ from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWa
 warnings.simplefilter("ignore", category=NumbaDeprecationWarning)
 warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 # For now ignore warnings caused by dependency fairlearn. Remove once they address Pandas 2.0
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 # Real imports
 from uuid import uuid4
@@ -560,7 +560,12 @@ class SliceGuard:
             raise RuntimeError("Could not determine run mode.")
 
         # Encode the features for clustering according to inferred types
-        encoded_data, prereduced_embeddings, raw_embeddings = encode_normalize_features(
+        (
+            encoded_data,
+            prereduced_embeddings,
+            raw_embeddings,
+            feature_encoders,
+        ) = encode_normalize_features(
             features,
             feature_types,
             feature_orders,
@@ -574,6 +579,8 @@ class SliceGuard:
             df,
             mode,
         )
+
+        self._feature_encoders = feature_encoders
 
         # If y and y_pred are non use an outlier detection algorithm to detect potential issues in the data.
         # If y is given but no y_pred is given just train a task specific surrogate model.
@@ -613,7 +620,7 @@ class SliceGuard:
                 for v in raw_embeddings.values():
                     X_data.append(v)
 
-            y_preds, y_probs, classes = fit_classification_regression_model(
+            y_preds, y_probs, classes, model = fit_classification_regression_model(
                 df=df,
                 y_column=y,
                 feature_types=feature_types,
@@ -633,6 +640,8 @@ class SliceGuard:
                 hf_model_epochs=automl_hf_model_epochs,
                 hf_auth_token=hf_auth_token,
             )
+
+            self.model = model  # save for use through user.
 
             df[y_pred] = y_preds
 
@@ -669,3 +678,27 @@ class SliceGuard:
             prereduced_embeddings,
             raw_embeddings,
         )
+
+    def predict(self, df, features):
+        # Validate that all features are present in the encoder dict
+        for feature in features:
+            if feature not in self._feature_encoders:
+                raise ValueError(f"Feature '{feature}' is not present in the encoder dictionary.")
+
+        # Prepare encoded data
+        encoded_features = []
+        for feature in features:
+            encoder = self._feature_encoders[feature]
+            encoded_feature = encoder.transform(df[[feature]])
+            # Ensure the encoded feature is a 2D array
+            if len(encoded_feature.shape) == 1:
+                encoded_feature = encoded_feature.reshape(-1, 1)
+            encoded_features.append(encoded_feature)
+
+        # Concatenate all encoded features to form X
+        X = np.concatenate(encoded_features, axis=1)
+
+        # Run prediction
+        predictions = self.model.predict(X)
+
+        return predictions

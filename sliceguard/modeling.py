@@ -83,8 +83,9 @@ def fit_classification_regression_model(
             hf_model_epochs,
             hf_auth_token=hf_auth_token,
         )
+        model = None
     else:
-        y_probs, y_preds, classes = _fit_embedding_based_model(
+        y_probs, y_preds, classes, model = _fit_embedding_based_model(
             encoded_data,
             task,
             split,
@@ -95,7 +96,7 @@ def fit_classification_regression_model(
             automl_metric,
         )
 
-    return y_preds, y_probs, classes
+    return y_preds, y_probs, classes, model
 
 
 def _fit_hf_model_image_classification(
@@ -208,4 +209,4 @@ def _fit_embedding_based_model(
         classes = None
     else:
         raise RuntimeError("Could not run inference. Not valid task given.")
-    return y_probs, y_preds, classes
+    return y_probs, y_preds, classes, automl

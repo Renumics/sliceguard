@@ -9,6 +9,7 @@ warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 # Real imports
+import re
 from uuid import uuid4
 from pathlib import Path
 from typing import List, Literal, Dict, Callable, Optional, Tuple, Union, Any
@@ -764,7 +765,16 @@ class SliceGuard:
 
         # Create the TreeExplainer and calculate SHAP values
         explainer = shap.TreeExplainer(self.model.model.estimator)
-        shap_values = explainer(pd.DataFrame(X, columns=self._feature_positions))
+        pred_df = pd.DataFrame(X, columns=self._feature_positions)
+
+        regex = re.compile(r"[\[\]<>]")
+
+        pred_df.columns = [
+            regex.sub("_", col) if any(x in str(col) for x in "[]<>") else col
+            for col in pred_df.columns
+        ]
+
+        shap_values = explainer(pred_df)
 
         shap.plots.beeswarm(shap_values, max_display=20)
 

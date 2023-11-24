@@ -750,6 +750,13 @@ class SliceGuard:
 
         return predictions
 
+    def predict_proba(self, df, precomputed_embeddings={}):
+        X = self._prepare_prediction(df, precomputed_embeddings)
+        # Run prediction
+        probs = self.model.predict_proba(X)
+
+        return probs
+
     def explain(self, df, precomputed_embeddings={}):
         _, shap = get_automl_imports()
 

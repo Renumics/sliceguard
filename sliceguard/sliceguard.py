@@ -679,20 +679,56 @@ class SliceGuard:
             raw_embeddings,
         )
 
-    def predict(self, df, features):
+    def predict(self, df, precomputed_embeddings={}):
         # Validate that all features are present in the encoder dict
-        for feature in features:
-            if feature not in self._feature_encoders:
-                raise ValueError(f"Feature '{feature}' is not present in the encoder dictionary.")
+        for feature in self._features:
+            if (
+                feature not in self._feature_encoders
+                and feature not in precomputed_embeddings
+            ):
+                raise ValueError(
+                    f"Feature '{feature}' is not present in the encoder dictionary or precomputed embeddings."
+                )
 
         # Prepare encoded data
         encoded_features = []
-        for feature in features:
-            encoder = self._feature_encoders[feature]
-            encoded_feature = encoder.transform(df[[feature]])
-            # Ensure the encoded feature is a 2D array
-            if len(encoded_feature.shape) == 1:
-                encoded_feature = encoded_feature.reshape(-1, 1)
+        for feature in self._features:
+            # Check if the encoder is a dictionary (for special handling)
+            if isinstance(self._feature_encoders[feature], dict):
+                encoder_dict = self._feature_encoders[feature]
+                embedding_func = encoder_dict["embedding_func"]
+                hf_model_params = encoder_dict.get("hf_model_params", {})
+
+                # Call the embedding function
+                if feature in precomputed_embeddings:
+                    encoded_feature = np.array(precomputed_embeddings[feature])
+                else:
+                    encoded_feature = embedding_func(
+                        df[feature].values, **hf_model_params
+                    )
+                    encoded_feature = np.array(encoded_feature)
+
+                if "umap_reducer" in encoder_dict:
+                    encoded_feature = encoder_dict["umap_reducer"].transform(
+                        encoded_feature
+                    )
+                if "normalization_mean_distance" in encoder_dict:
+                    encoded_feature = (
+                        encoded_feature / encoder_dict["normalization_mean_distance"]
+                    )
+                if "embedding_weights" in encoder_dict:
+                    encoded_feature = encoded_feature * encoder_dict["embedding_weights"]
+
+            else:
+                # Standard encoding
+                encoder = self._feature_encoders[feature]
+                encoded_feature = encoder.transform(df[[feature]].values)
+
+                # Ensure the encoded feature is a 2D array
+                if len(encoded_feature.shape) == 1:
+                    print(f"Reshaped array for {feature}.")
+                    encoded_feature = encoded_feature.reshape(-1, 1)
+
             encoded_features.append(encoded_feature)
 
         # Concatenate all encoded features to form X
@@ -702,3 +738,6 @@ class SliceGuard:
         predictions = self.model.predict(X)
 
         return predictions
+
+    def explain(self, df, precomputed_embeddings={}):
+        pass

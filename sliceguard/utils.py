@@ -47,9 +47,9 @@ def infer_feature_types(
                 (col_dtype == "category" or isinstance(col_dtype, pd.CategoricalDtype))
                 and df[col].cat.ordered != True
             )
-        ) and col not in given_feature_types:
+        ) and ((col not in given_feature_types) or (col in given_feature_types and given_feature_types[col] == "raw")):
             num_unique_values = len(df[col].unique())
-            if num_unique_values / len(df) > 0.5:
+            if num_unique_values / len(df) > 0.5 or (col in given_feature_types and given_feature_types[col] == "raw"):
                 print(
                     f"Feature {col} was inferred as referring to raw data. If this is not the case, please specify in feature_types!"
                 )
@@ -229,6 +229,7 @@ def encode_normalize_features(
                 raw_embeddings[
                     col
                 ] = embeddings  # also save them here as they are used in report
+                feature_transformation_pipelines[col] = {}
             elif (
                 raw_feature_types[col] == "audio"
             ):  # TODO: Improve data type inference for raw data
@@ -236,18 +237,21 @@ def encode_normalize_features(
                 embeddings = generate_audio_embeddings(
                     df[col].values, **hf_model_params
                 )
+                feature_transformation_pipelines[col] = {"hf_model_params": hf_model_params, "embedding_func": generate_audio_embeddings}
                 raw_embeddings[col] = embeddings
             elif raw_feature_types[col] == "image":
                 print("Computing image embeddings.")
                 embeddings = generate_image_embeddings(
                     df[col].values, **hf_model_params
                 )
+                feature_transformation_pipelines[col] = {"hf_model_params": hf_model_params, "embedding_func": generate_image_embeddings}
                 raw_embeddings[col] = embeddings
             elif raw_feature_types[col] == "text":  # Treat as text if nothing known
                 print(
                     f"Warning: Column {col} will be treated as text. If the column {col} is a path to some file it is probably not supported yet!"
                 )
                 embeddings = generate_text_embeddings(df[col].values, **hf_model_params)
+                feature_transformation_pipelines[col] = {"hf_model_params": hf_model_params, "embedding_func": generate_text_embeddings}
                 raw_embeddings[col] = embeddings
             else:
                 raise RuntimeError(
@@ -283,7 +287,7 @@ def encode_normalize_features(
 
             print(f"Using num dimensions {num_dimensions}.")
 
-            reduced_embeddings = umap.UMAP(
+            umap_transformer = umap.UMAP(
                 n_neighbors=min(embeddings.shape[0] - 1, n_neighbors),
                 n_components=min(
                     embeddings.shape[0] - 2,
@@ -291,7 +295,9 @@ def encode_normalize_features(
                 ),  # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normalization.
                 # min_dist=0.0,
                 set_op_mix_ratio=op_mix_ratio_prereduction,
-            ).fit_transform(embeddings)
+            )
+            reduced_embeddings = umap_transformer.fit_transform(embeddings)
+            feature_transformation_pipelines[col]["umap_reducer"] = umap_transformer 
 
             # Do a normalization of the reduced embedding to match one hot encoded and ordinal encoding respectively
             # Therefore we will run hdbscan on the data real quick to do an estimate of the cluster distances.
@@ -307,6 +313,7 @@ def encode_normalize_features(
                     distances.flatten().mean()
                 )  # TODO: Verify if mean is the right thing. Potentially should be done with RobustScaler?
                 reduced_embeddings = reduced_embeddings / mean_distance
+                feature_transformation_pipelines[col]["normalization_mean_distance"] = mean_distance
 
             # Use embedding weight if given for this particular embedding
             if col in embedding_weights:
@@ -314,6 +321,7 @@ def encode_normalize_features(
                     f"Weighting the embedding with manually supplied weight {embedding_weights[col]}."
                 )
                 reduced_embeddings = reduced_embeddings * embedding_weights[col]
+                feature_transformation_pipelines[col]["embedding_weights"] = embedding_weights[col]
 
             # safe this as it can be used for generating explanations again
             # do not normalize as this will probably cause non blobby clusters and it is unclear what clustering assumes

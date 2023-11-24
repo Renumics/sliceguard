@@ -25,7 +25,11 @@ from renumics.spotlight import layout
 from .utils import infer_feature_types, encode_normalize_features
 from .detection import generate_metric_frames, detect_issues
 from .explanation import explain_clusters
-from .modeling import fit_outlier_detection_model, fit_classification_regression_model
+from .modeling import (
+    fit_outlier_detection_model,
+    fit_classification_regression_model,
+    get_automl_imports,
+)
 
 
 class SliceGuard:
@@ -565,6 +569,7 @@ class SliceGuard:
             prereduced_embeddings,
             raw_embeddings,
             feature_encoders,
+            feature_positions,
         ) = encode_normalize_features(
             features,
             feature_types,
@@ -581,6 +586,7 @@ class SliceGuard:
         )
 
         self._feature_encoders = feature_encoders
+        self._feature_positions = feature_positions
 
         # If y and y_pred are non use an outlier detection algorithm to detect potential issues in the data.
         # If y is given but no y_pred is given just train a task specific surrogate model.
@@ -679,7 +685,7 @@ class SliceGuard:
             raw_embeddings,
         )
 
-    def predict(self, df, precomputed_embeddings={}):
+    def _prepare_prediction(self, df, precomputed_embeddings):
         # Validate that all features are present in the encoder dict
         for feature in self._features:
             if (
@@ -717,7 +723,9 @@ class SliceGuard:
                         encoded_feature / encoder_dict["normalization_mean_distance"]
                     )
                 if "embedding_weights" in encoder_dict:
-                    encoded_feature = encoded_feature * encoder_dict["embedding_weights"]
+                    encoded_feature = (
+                        encoded_feature * encoder_dict["embedding_weights"]
+                    )
 
             else:
                 # Standard encoding
@@ -733,11 +741,25 @@ class SliceGuard:
 
         # Concatenate all encoded features to form X
         X = np.concatenate(encoded_features, axis=1)
+        return X
 
+    def predict(self, df, precomputed_embeddings={}):
+        X = self._prepare_prediction(df, precomputed_embeddings)
         # Run prediction
         predictions = self.model.predict(X)
 
         return predictions
 
     def explain(self, df, precomputed_embeddings={}):
-        pass
+        _, shap = get_automl_imports()
+
+        X = self._prepare_prediction(df, precomputed_embeddings)
+
+        # Create the TreeExplainer and calculate SHAP values
+        explainer = shap.TreeExplainer(self.model.model.estimator)
+        shap_values = explainer(pd.DataFrame(X, columns=self._feature_positions))
+
+        shap.plots.beeswarm(shap_values)
+
+        # Return the SHAP values
+        return shap_values

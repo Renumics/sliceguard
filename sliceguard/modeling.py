@@ -14,12 +14,13 @@ def get_automl_imports():
     try:
         from flaml import AutoML
         import xgboost
+        import shap
     except ImportError:
         raise RuntimeError(
             'Optional dependencies flaml and xgboost required! (run pip install "sliceguard[automl]")'
         )
 
-    return AutoML
+    return AutoML, shap
 
 
 def fit_outlier_detection_model(encoded_data: np.array):
@@ -150,7 +151,7 @@ def _fit_embedding_based_model(
     encoded_ys,
     automl_metric,
 ):
-    AutoML = get_automl_imports()
+    AutoML, _ = get_automl_imports()
 
     if split is not None:
         if train_split is not None:

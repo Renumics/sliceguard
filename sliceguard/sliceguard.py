@@ -759,7 +759,7 @@ class SliceGuard:
         explainer = shap.TreeExplainer(self.model.model.estimator)
         shap_values = explainer(pd.DataFrame(X, columns=self._feature_positions))
 
-        shap.plots.beeswarm(shap_values)
+        shap.plots.beeswarm(shap_values, max_display=20)
 
         # Return the SHAP values
         return shap_values

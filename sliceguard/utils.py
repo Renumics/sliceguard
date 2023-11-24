@@ -52,7 +52,7 @@ def infer_feature_types(
             or (col in given_feature_types and given_feature_types[col] == "raw")
         ):
             num_unique_values = len(df[col].unique())
-            if num_unique_values / len(df) > 0.5 or (
+            if num_unique_values / len(df) > 0.2 or (
                 col in given_feature_types and given_feature_types[col] == "raw"
             ):
                 print(

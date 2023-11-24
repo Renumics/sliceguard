@@ -758,7 +758,7 @@ class SliceGuard:
 
         return probs
 
-    def explain(self, df, precomputed_embeddings={}):
+    def explain(self, df, precomputed_embeddings={}, max_display=20):
         _, shap = get_automl_imports()
 
         X = self._prepare_prediction(df, precomputed_embeddings)
@@ -776,7 +776,7 @@ class SliceGuard:
 
         shap_values = explainer(pred_df)
 
-        shap.plots.beeswarm(shap_values, max_display=20)
+        shap.plots.beeswarm(shap_values, max_display=max_display)
 
         # Return the SHAP values
         return shap_values

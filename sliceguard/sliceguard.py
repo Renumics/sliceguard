@@ -239,7 +239,10 @@ class SliceGuard:
 
                 issue_metric = clustering_df[clustering_df[clustering_col] == issue][
                     clustering_metric_col
-                ].values[0]
+                ]
+                issue_metric = (
+                    issue_metric.values[0] if len(issue_metric) > 0 else np.nan
+                )
 
                 current_issue["metric"] = issue_metric
 

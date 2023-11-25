@@ -57,6 +57,7 @@ class SliceGuard:
             str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
         ] = {},
         feature_orders: Dict[str, list] = {},
+        disable_scaling=[],
         precomputed_embeddings: Dict[str, np.array] = {},
         embedding_models: Dict[str, str] = {},
         embedding_weights: Dict[str, float] = {},
@@ -156,6 +157,7 @@ class SliceGuard:
             remove_outliers,
             feature_types=feature_types,
             feature_orders=feature_orders,
+            disable_scaling=disable_scaling,
             precomputed_embeddings=precomputed_embeddings,
             embedding_models=embedding_models,
             embedding_weights=embedding_weights,
@@ -527,6 +529,7 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=None,
         automl_use_full_embeddings=False,
+        disable_scaling=[],
         automl_hf_model: str = None,
         automl_hf_model_architecture: "transformers.PreTrainedModel" = None,
         automl_hf_model_output_dir: Union[str, Path] = None,
@@ -582,6 +585,7 @@ class SliceGuard:
             precomputed_embeddings,
             embedding_models,
             embedding_weights,
+            disable_scaling,
             hf_auth_token,
             hf_num_proc,
             hf_batch_size,
@@ -732,14 +736,19 @@ class SliceGuard:
                     )
 
             else:
-                # Standard encoding
-                encoder = self._feature_encoders[feature]
-                encoded_feature = encoder.transform(df[[feature]].values)
+                if feature in self._feature_encoders and self._feature_encoders[feature] is not None:
+                    # Standard encoding
+                    encoder = self._feature_encoders[feature]
+                    encoded_feature = encoder.transform(df[[feature]].values)
 
-                # Ensure the encoded feature is a 2D array
-                if len(encoded_feature.shape) == 1:
-                    print(f"Reshaped array for {feature}.")
-                    encoded_feature = encoded_feature.reshape(-1, 1)
+                    # Ensure the encoded feature is a 2D array
+                    if len(encoded_feature.shape) == 1:
+                        print(f"Reshaped array for {feature}.")
+                        encoded_feature = encoded_feature.reshape(-1, 1)
+                elif feature in self._feature_encoders and self._feature_encoders[feature] is None:
+                    encoded_feature = df[[feature]].values
+                else:
+                    raise RuntimeError("Error while scaling features. This should never happen.")
 
             encoded_features.append(encoded_feature)
 

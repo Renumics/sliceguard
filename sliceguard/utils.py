@@ -144,6 +144,7 @@ def encode_normalize_features(
     precomputed_embeddings: Dict[str, np.array],
     embedding_models: Dict[str, str],
     embedding_weights: Dict[str, float],
+    disable_scaling: List[str],
     hf_auth_token: str,
     hf_num_proc: Optional[int],
     hf_batch_size: int,
@@ -172,11 +173,14 @@ def encode_normalize_features(
         if feature_type == "numerical":
             # TODO: Think about proper scaling method. Intuition here is to preserve outliers,
             # however the range of the data can possibly dominate one hot and ordinal encoded features.
-            scaler = RobustScaler(quantile_range=(2.5, 97.5))
-            normalized_data = scaler.fit_transform(df[col].values.reshape(-1, 1))
-            feature_transformation_pipelines[col] = scaler
+            if col in disable_scaling:
+                feature_transformation_pipelines[col] = None
+                normalized_data = df[col].values.reshape(-1, 1)
+            else:
+                scaler = RobustScaler(quantile_range=(2.5, 97.5))
+                normalized_data = scaler.fit_transform(df[col].values.reshape(-1, 1))
+                feature_transformation_pipelines[col] = scaler
             feature_positions.append(col)
-
             encoded_data = np.concatenate((encoded_data, normalized_data), axis=1)
 
         elif feature_type == "nominal":

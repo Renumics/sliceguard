@@ -1,8 +1,7 @@
 # Supress numba deprecation warnings until umap fixes this
 import warnings
 from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
-from sklearn.base import accuracy_score
-from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_error, accuracy_score
 
 # Ignore warnings caused by dependency umap-learn
 warnings.simplefilter("ignore", category=NumbaDeprecationWarning)

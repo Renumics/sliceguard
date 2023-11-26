@@ -877,39 +877,39 @@ class SliceGuard:
         return probs
 
 
-def explain(
-    self,
-    df: pd.DataFrame,
-    precomputed_embeddings: Dict[str, np.array] = {},
-    max_display: int = 20,
-) -> Any:
-    """
-    Generate SHAP values for explaining the model's predictions on the given dataframe.
+    def explain(
+        self,
+        df: pd.DataFrame,
+        precomputed_embeddings: Dict[str, np.array] = {},
+        max_display: int = 20,
+    ) -> Any:
+        """
+        Generate SHAP values for explaining the model's predictions on the given dataframe.
 
-    :param df: A pandas DataFrame containing the data to be explained.
-    :param precomputed_embeddings: Optional. A dictionary of precomputed embeddings for the data.
-                                This should be in the format {"column_name": embedding_array}.
-    :param max_display: The maximum number of features to display in SHAP plots. Defaults to 20.
-    :return: The SHAP values corresponding to the features in the dataframe.
-    """
-    _, shap = get_automl_imports()
+        :param df: A pandas DataFrame containing the data to be explained.
+        :param precomputed_embeddings: Optional. A dictionary of precomputed embeddings for the data.
+                                    This should be in the format {"column_name": embedding_array}.
+        :param max_display: The maximum number of features to display in SHAP plots. Defaults to 20.
+        :return: The SHAP values corresponding to the features in the dataframe.
+        """
+        _, shap = get_automl_imports()
 
-    X = self._prepare_prediction(df, precomputed_embeddings)
+        X = self._prepare_prediction(df, precomputed_embeddings)
 
-    # Create the TreeExplainer and calculate SHAP values
-    explainer = shap.TreeExplainer(self.model.model.estimator)
-    pred_df = pd.DataFrame(X, columns=self._feature_positions)
+        # Create the TreeExplainer and calculate SHAP values
+        explainer = shap.TreeExplainer(self.model.model.estimator)
+        pred_df = pd.DataFrame(X, columns=self._feature_positions)
 
-    regex = re.compile(r"[\[\]<>]")
+        regex = re.compile(r"[\[\]<>]")
 
-    pred_df.columns = [
-        regex.sub("_", col) if any(x in str(col) for x in "[]<>") else col
-        for col in pred_df.columns
-    ]
+        pred_df.columns = [
+            regex.sub("_", col) if any(x in str(col) for x in "[]<>") else col
+            for col in pred_df.columns
+        ]
 
-    shap_values = explainer(pred_df)
+        shap_values = explainer(pred_df)
 
-    shap.plots.beeswarm(shap_values, max_display=max_display)
+        shap.plots.beeswarm(shap_values, max_display=max_display)
 
-    # Return the SHAP values
-    return shap_values
+        # Return the SHAP values
+        return shap_values

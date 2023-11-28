@@ -876,7 +876,6 @@ class SliceGuard:
 
         return probs
 
-
     def explain(
         self,
         df: pd.DataFrame,

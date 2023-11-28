@@ -7,6 +7,7 @@ from datasets import Image, Audio, ClassLabel, Value, Sequence
 import uuid
 import puremagic
 
+
 def _get_tutorial_imports():
     try:
         from bing_image_downloader import downloader
@@ -27,18 +28,18 @@ def convert_data(data: dict, data_dir: str):
     """
     Prefer raw data over path
     """
-    if "bytes" in data and data['bytes'] is not None:
-        if len(data['bytes']) > 0:
-            suffix = puremagic.from_string(data['bytes'])
+    if "bytes" in data and data["bytes"] is not None:
+        if len(data["bytes"]) > 0:
+            suffix = puremagic.from_string(data["bytes"])
             return write_file(data, suffix, data_dir)
 
-    if "path" in data and data['path'] is not None:
-        if data['path'] != "":
-            suffix = puremagic.from_file(data['path'])
+    if "path" in data and data["path"] is not None:
+        if data["path"] != "":
+            suffix = puremagic.from_file(data["path"])
             new_path = f"{data['path']}{suffix}"
 
             # In case of missing file extension
-            rename(data['path'], new_path)
+            rename(data["path"], new_path)
 
             return new_path
 
@@ -60,7 +61,9 @@ def convert_data(data: dict, data_dir: str):
 # "tweet_eval", "emoji"
 
 
-def from_huggingface(dataset_identifier: str, name=None, split=None, extract_dir="./sliceguard_tmp"):
+def from_huggingface(
+    dataset_identifier: str, name=None, split=None, extract_dir="./sliceguard_tmp"
+):
     # Simple utility method to support loading of huggingface datasets
     dataset = datasets.load_dataset(dataset_identifier, name, split)
     overall_df = None
@@ -104,7 +107,9 @@ def from_huggingface(dataset_identifier: str, name=None, split=None, extract_dir
                 if any(x is None for x in split_df[fname].values):
                     print("Column {fname} dropped due to None-type entries.")
                 else:
-                    split_df[fname] = split_df[fname].map(lambda x: convert_data(x, extract_dir))
+                    split_df[fname] = split_df[fname].map(
+                        lambda x: convert_data(x, extract_dir)
+                    )
 
         if overall_df is None:
             overall_df = split_df

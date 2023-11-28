@@ -62,10 +62,20 @@ def convert_data(data: dict, data_dir: str):
 
 
 def from_huggingface(
-    dataset_identifier: str, name=None, split=None, extract_dir="./sliceguard_tmp"
+    dataset_identifier: str,
+    name=None,
+    split=None,
+    extract_dir="./sliceguard_tmp",
+    force_redownload=False,
 ):
     # Simple utility method to support loading of huggingface datasets
-    dataset = datasets.load_dataset(dataset_identifier, name, split)
+    dataset = datasets.load_dataset(
+        dataset_identifier,
+        name,
+        split,
+        download_mode="force_redownload" if force_redownload else None,
+    )
+
     overall_df = None
 
     # Create missing directories if non-existent

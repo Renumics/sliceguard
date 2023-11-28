@@ -427,7 +427,7 @@ class SliceGuard:
         if hasattr(self, "_generated_y_pred"):
             df["sg_y_pred"] = self._generated_y_pred[selected_dataframe_rows]
 
-        if hasattr(self, "_generated_y_probs") and hasattr(self, "_classes"):
+        if hasattr(self, "_generated_y_probs") and hasattr(self, "classes"):
             for class_idx, label in enumerate(self._classes):
                 df[f"sg_p_{label}"] = self._generated_y_probs[:, class_idx].tolist()
 
@@ -661,7 +661,7 @@ class SliceGuard:
             df[y_pred] = y_preds
 
             if classes is not None:
-                self._classes = classes
+                self.classes = classes
             if y_probs is not None:
                 self._generated_y_probs = y_probs
             self._generated_y_pred = df[y_pred].values

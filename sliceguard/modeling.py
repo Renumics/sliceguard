@@ -17,7 +17,7 @@ def get_automl_imports():
         import shap
     except ImportError:
         raise RuntimeError(
-            'Optional dependencies flaml and xgboost required! (run pip install "sliceguard[automl]")'
+            'Optional dependencies shap, flaml and xgboost required! (run pip install "sliceguard[automl]")'
         )
 
     return AutoML, shap

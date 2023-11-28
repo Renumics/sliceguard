@@ -109,7 +109,9 @@ def explain_clusters(features, feature_types, issues, df, prereduced_embeddings)
                 elif len(feature_mode == 1):
                     predicate["mode"] = feature_mode[0]
                 else:
-                    raise RuntimeError("Invalid value encountered when calculating feature mode.")
+                    raise RuntimeError(
+                        "Invalid value encountered when calculating feature mode."
+                    )
             predicates_list.append(predicate)
 
         issue["explanation"] = predicates_list

@@ -30,6 +30,7 @@ dependencies = [
 automl = [
   "flaml >= 2.0.0",
   "xgboost >= 1.7.6, < 2.0.0",
+  "shap >= 0.43.0",
 ]
 embedding = [
   "transformers[torch] >= 4.30.2",

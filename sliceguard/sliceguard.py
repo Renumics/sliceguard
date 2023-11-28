@@ -1,14 +1,16 @@
 # Supress numba deprecation warnings until umap fixes this
 import warnings
 from numba.core.errors import NumbaDeprecationWarning, NumbaPendingDeprecationWarning
+from sklearn.metrics import mean_absolute_error, accuracy_score
 
 # Ignore warnings caused by dependency umap-learn
 warnings.simplefilter("ignore", category=NumbaDeprecationWarning)
 warnings.simplefilter("ignore", category=NumbaPendingDeprecationWarning)
 # For now ignore warnings caused by dependency fairlearn. Remove once they address Pandas 2.0
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 # Real imports
+import re
 from uuid import uuid4
 from pathlib import Path
 from typing import List, Literal, Dict, Callable, Optional, Tuple, Union, Any
@@ -25,7 +27,11 @@ from renumics.spotlight import layout
 from .utils import infer_feature_types, encode_normalize_features
 from .detection import generate_metric_frames, detect_issues
 from .explanation import explain_clusters
-from .modeling import fit_outlier_detection_model, fit_classification_regression_model
+from .modeling import (
+    fit_outlier_detection_model,
+    fit_classification_regression_model,
+    get_automl_imports,
+)
 
 
 class SliceGuard:
@@ -33,7 +39,6 @@ class SliceGuard:
     The main class for detecting issues in your data
     """
 
-    # TODO: Introduce control features to account for expected variations
     def find_issues(
         self,
         data: pd.DataFrame,
@@ -52,21 +57,22 @@ class SliceGuard:
             str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
         ] = {},
         feature_orders: Dict[str, list] = {},
+        disable_scaling: List[str] = [],
         precomputed_embeddings: Dict[str, np.array] = {},
         embedding_models: Dict[str, str] = {},
         embedding_weights: Dict[str, float] = {},
-        hf_auth_token=None,
-        hf_num_proc=None,
-        hf_batch_size=1,
-        automl_task="classification",
-        automl_split_key=None,
-        automl_train_split=None,
-        automl_time_budget=20.0,
-        automl_use_full_embeddings=False,
-        automl_hf_model="",
-        automl_hf_model_architecture=None,
-        automl_hf_model_output_dir="./hf_model",
-        automl_hf_model_epochs=5,
+        hf_auth_token: Optional[str] = None,
+        hf_num_proc: Optional[int] = None,
+        hf_batch_size: int = 1,
+        automl_task: Literal["classification", "regression"] = "classification",
+        automl_split_key: Optional[str] = None,
+        automl_train_split: Optional[str] = None,
+        automl_time_budget: float = 20.0,
+        automl_use_full_embeddings: bool = False,
+        automl_hf_model: Optional[str] = None,
+        automl_hf_model_architecture: Optional[str] = None,
+        automl_hf_model_output_dir: str = "./hf_model",
+        automl_hf_model_epochs: int = 5,
     ) -> List[dict]:
         """
         Find slices that are classified badly by your model.
@@ -90,6 +96,7 @@ class SliceGuard:
             Can be "raw" for filepaths to unstructured data. Can be "embedding" for embedding vectors.
         :param feature_orders: Specify the order of ordinal feature values that should be used for encoding. This is required for EVERY ordinal feature
             that is not specified by pandas categorical ordered datatypes.
+        :param disable_scaling: List of features that should not be scaled for automl and clustering. Right now only applied to numerical features.
         :param precomputed_embeddings: Supply precomputed embeddings for raw columns. Form should be precomputed_embeddings={"image": image_embeddings}.
             This is especially useful if you run repeated checks on your data and you want to compute embeddings only once.
         :param embedding_models: Supply huggingface model identifiers or locally saved models used for computing embeddings on specific columns.
@@ -151,6 +158,7 @@ class SliceGuard:
             remove_outliers,
             feature_types=feature_types,
             feature_orders=feature_orders,
+            disable_scaling=disable_scaling,
             precomputed_embeddings=precomputed_embeddings,
             embedding_models=embedding_models,
             embedding_weights=embedding_weights,
@@ -234,7 +242,10 @@ class SliceGuard:
 
                 issue_metric = clustering_df[clustering_df[clustering_col] == issue][
                     clustering_metric_col
-                ].values[0]
+                ]
+                issue_metric = (
+                    issue_metric.values[0] if len(issue_metric) > 0 else np.nan
+                )
 
                 current_issue["metric"] = issue_metric
 
@@ -416,7 +427,7 @@ class SliceGuard:
         if hasattr(self, "_generated_y_pred"):
             df["sg_y_pred"] = self._generated_y_pred[selected_dataframe_rows]
 
-        if hasattr(self, "_generated_y_probs") and hasattr(self, "_classes"):
+        if hasattr(self, "_generated_y_probs") and hasattr(self, "classes"):
             for class_idx, label in enumerate(self._classes):
                 df[f"sg_p_{label}"] = self._generated_y_probs[:, class_idx].tolist()
 
@@ -519,6 +530,7 @@ class SliceGuard:
         automl_train_split=None,
         automl_time_budget=None,
         automl_use_full_embeddings=False,
+        disable_scaling=[],
         automl_hf_model: str = None,
         automl_hf_model_architecture: "transformers.PreTrainedModel" = None,
         automl_hf_model_output_dir: Union[str, Path] = None,
@@ -560,7 +572,13 @@ class SliceGuard:
             raise RuntimeError("Could not determine run mode.")
 
         # Encode the features for clustering according to inferred types
-        encoded_data, prereduced_embeddings, raw_embeddings = encode_normalize_features(
+        (
+            encoded_data,
+            prereduced_embeddings,
+            raw_embeddings,
+            feature_encoders,
+            feature_positions,
+        ) = encode_normalize_features(
             features,
             feature_types,
             feature_orders,
@@ -568,12 +586,16 @@ class SliceGuard:
             precomputed_embeddings,
             embedding_models,
             embedding_weights,
+            disable_scaling,
             hf_auth_token,
             hf_num_proc,
             hf_batch_size,
             df,
             mode,
         )
+
+        self._feature_encoders = feature_encoders
+        self._feature_positions = feature_positions
 
         # If y and y_pred are non use an outlier detection algorithm to detect potential issues in the data.
         # If y is given but no y_pred is given just train a task specific surrogate model.
@@ -613,7 +635,7 @@ class SliceGuard:
                 for v in raw_embeddings.values():
                     X_data.append(v)
 
-            y_preds, y_probs, classes = fit_classification_regression_model(
+            y_preds, y_probs, classes, model = fit_classification_regression_model(
                 df=df,
                 y_column=y,
                 feature_types=feature_types,
@@ -634,10 +656,12 @@ class SliceGuard:
                 hf_auth_token=hf_auth_token,
             )
 
+            self.model = model  # save for use through user.
+
             df[y_pred] = y_preds
 
             if classes is not None:
-                self._classes = classes
+                self.classes = classes
             if y_probs is not None:
                 self._generated_y_probs = y_probs
             self._generated_y_pred = df[y_pred].values
@@ -669,3 +693,222 @@ class SliceGuard:
             prereduced_embeddings,
             raw_embeddings,
         )
+
+    def _prepare_prediction(self, df, precomputed_embeddings):
+        # Validate that all features are present in the encoder dict
+        for feature in self._features:
+            if (
+                feature not in self._feature_encoders
+                and feature not in precomputed_embeddings
+            ):
+                raise ValueError(
+                    f"Feature '{feature}' is not present in the encoder dictionary or precomputed embeddings."
+                )
+
+        # Prepare encoded data
+        encoded_features = []
+        for feature in self._features:
+            # Check if the encoder is a dictionary (for special handling)
+            if isinstance(self._feature_encoders[feature], dict):
+                encoder_dict = self._feature_encoders[feature]
+                embedding_func = encoder_dict["embedding_func"]
+                hf_model_params = encoder_dict.get("hf_model_params", {})
+
+                # Call the embedding function
+                if feature in precomputed_embeddings:
+                    encoded_feature = np.array(precomputed_embeddings[feature])
+                else:
+                    encoded_feature = embedding_func(
+                        df[feature].values, **hf_model_params
+                    )
+                    encoded_feature = np.array(encoded_feature)
+
+                if "umap_reducer" in encoder_dict:
+                    encoded_feature = encoder_dict["umap_reducer"].transform(
+                        encoded_feature
+                    )
+                if "normalization_mean_distance" in encoder_dict:
+                    encoded_feature = (
+                        encoded_feature / encoder_dict["normalization_mean_distance"]
+                    )
+                if "embedding_weights" in encoder_dict:
+                    encoded_feature = (
+                        encoded_feature * encoder_dict["embedding_weights"]
+                    )
+
+            else:
+                if (
+                    feature in self._feature_encoders
+                    and self._feature_encoders[feature] is not None
+                ):
+                    # Standard encoding
+                    encoder = self._feature_encoders[feature]
+                    encoded_feature = encoder.transform(df[[feature]].values)
+
+                    # Ensure the encoded feature is a 2D array
+                    if len(encoded_feature.shape) == 1:
+                        print(f"Reshaped array for {feature}.")
+                        encoded_feature = encoded_feature.reshape(-1, 1)
+                elif (
+                    feature in self._feature_encoders
+                    and self._feature_encoders[feature] is None
+                ):
+                    encoded_feature = df[[feature]].values
+                else:
+                    raise RuntimeError(
+                        "Error while scaling features. This should never happen."
+                    )
+
+            encoded_features.append(encoded_feature)
+
+        # Concatenate all encoded features to form X
+        X = np.concatenate(encoded_features, axis=1)
+        return X
+
+    def fit(
+        self,
+        df: pd.DataFrame,
+        y: str,
+        features: Optional[List[str]] = None,
+        task: Literal["classification", "regression"] = "classification",
+        use_full_embeddings: bool = False,
+        feature_types: Dict[
+            str, Literal["raw", "nominal", "ordinal", "numerical", "embedding"]
+        ] = {},
+        feature_orders: Dict[str, list] = {},
+        disable_scaling: List[str] = [],
+        split_key: Optional[str] = None,
+        train_split: Optional[str] = None,
+        time_budget: float = 20.0,
+        precomputed_embeddings: Dict[str, np.array] = {},
+        embedding_models: Dict[str, str] = {},
+        embedding_weights: Dict[str, float] = {},
+        hf_auth_token: Optional[str] = None,
+        hf_num_proc: Optional[int] = None,
+        hf_batch_size: int = 1,
+    ) -> List[dict]:
+        """
+        Fit the model to the provided dataframe and identify problematic data clusters.
+
+        :param df: A pandas DataFrame containing your data.
+        :param y: Name of the DataFrame column containing your ground-truth labels.
+        :param features: Optional. A list of feature column names the model should use for identifying problematic data clusters.
+        :param task: The task specification for training a model, either 'classification' or 'regression'.
+        :param use_full_embeddings: Whether to use the raw embeddings instead of pre-reduced ones when training the model, which can potentially improve performance.
+        :param feature_types: Specify the types of your features if they are not detected properly. Types can be 'raw', 'nominal', 'ordinal', 'numerical', or 'embedding'.
+        :param feature_orders: Specify the order of ordinal feature values for encoding. This is required for every ordinal feature not specified by pandas categorical ordered datatypes.
+        :param disable_scaling: List of features that should not be scaled for automl and clustering, typically applied only to numerical features.
+        :param split_key: Name of column used for splitting the data when training the model.
+        :param train_split: The value marking the train split when training the model. If supplied, the rest of the data will be used as the validation set. If not, crossvalidation is used.
+        :param time_budget: The time budget used for training the model.
+        :param precomputed_embeddings: Provide precomputed embeddings for raw columns, useful for repeated checks on your data to avoid re-computation.
+        :param embedding_models: Supply Hugging Face model identifiers or locally saved models for computing embeddings on specific columns.
+        :param embedding_weights: Specify the weighting of each computed embedding in the cluster search. Lower values reduce the influence of an embedding.
+        :param hf_auth_token: Authentication token for downloading models from the Hugging Face hub.
+        :param hf_num_proc: Number of processes used in embedding computation.
+        :param hf_batch_size: Batch size used for embedding computation.
+        :return: A list of identified issues, represented as python dicts.
+        """
+
+        # Select the appropriate metric based on the task
+        if task == "classification":
+            metric = accuracy_score
+        elif task == "regression":
+            metric = mean_absolute_error
+        else:
+            raise ValueError(
+                "Invalid task type. Choose 'classification' or 'regression'."
+            )
+
+        # Call to find_issues with the new parameters
+        return self.find_issues(
+            data=df,
+            features=features,
+            y=y,
+            metric=metric,
+            feature_types=feature_types,
+            feature_orders=feature_orders,
+            disable_scaling=disable_scaling,
+            precomputed_embeddings=precomputed_embeddings,
+            embedding_models=embedding_models,
+            embedding_weights=embedding_weights,
+            hf_auth_token=hf_auth_token,
+            hf_num_proc=hf_num_proc,
+            hf_batch_size=hf_batch_size,
+            automl_task=task,
+            automl_split_key=split_key,
+            automl_train_split=train_split,
+            automl_time_budget=time_budget,
+            automl_use_full_embeddings=use_full_embeddings,
+        )
+
+    def predict(
+        self, df: pd.DataFrame, precomputed_embeddings: Dict[str, np.array] = {}
+    ) -> np.array:
+        """
+        Perform predictions on a given dataframe using the trained model.
+
+        :param df: A pandas DataFrame containing the data for prediction.
+        :param precomputed_embeddings: Optional. A dictionary of precomputed embeddings for the data.
+                                    This should be in the format {"column_name": embedding_array}.
+        :return: An array of predictions generated by the model.
+        """
+        X = self._prepare_prediction(df, precomputed_embeddings)
+        # Run prediction
+        predictions = self.model.predict(X)
+
+        return predictions
+
+    def predict_proba(
+        self, df: pd.DataFrame, precomputed_embeddings: Dict[str, np.array] = {}
+    ) -> np.array:
+        """
+        Compute probability estimates for each class on the given dataframe using the trained model.
+
+        :param df: A pandas DataFrame containing the data for which probability estimates are needed.
+        :param precomputed_embeddings: Optional. A dictionary of precomputed embeddings for the data.
+                                    This should be in the format {"column_name": embedding_array}.
+        :return: An array of probability estimates for each class.
+        """
+        X = self._prepare_prediction(df, precomputed_embeddings)
+        # Run prediction
+        probs = self.model.predict_proba(X)
+
+        return probs
+
+    def explain(
+        self,
+        df: pd.DataFrame,
+        precomputed_embeddings: Dict[str, np.array] = {},
+        max_display: int = 20,
+    ) -> Any:
+        """
+        Generate SHAP values for explaining the model's predictions on the given dataframe.
+
+        :param df: A pandas DataFrame containing the data to be explained.
+        :param precomputed_embeddings: Optional. A dictionary of precomputed embeddings for the data.
+                                    This should be in the format {"column_name": embedding_array}.
+        :param max_display: The maximum number of features to display in SHAP plots. Defaults to 20.
+        :return: The SHAP values corresponding to the features in the dataframe.
+        """
+        _, shap = get_automl_imports()
+
+        X = self._prepare_prediction(df, precomputed_embeddings)
+
+        # Create the TreeExplainer and calculate SHAP values
+        explainer = shap.TreeExplainer(self.model.model.estimator)
+        pred_df = pd.DataFrame(X, columns=self._feature_positions)
+
+        regex = re.compile(r"[\[\]<>]")
+
+        pred_df.columns = [
+            regex.sub("_", col) if any(x in str(col) for x in "[]<>") else col
+            for col in pred_df.columns
+        ]
+
+        shap_values = explainer(pred_df)
+
+        shap.plots.beeswarm(shap_values, max_display=max_display)
+
+        # Return the SHAP values
+        return shap_values

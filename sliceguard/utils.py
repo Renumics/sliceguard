@@ -47,9 +47,14 @@ def infer_feature_types(
                 (col_dtype == "category" or isinstance(col_dtype, pd.CategoricalDtype))
                 and df[col].cat.ordered != True
             )
-        ) and col not in given_feature_types:
+        ) and (
+            (col not in given_feature_types)
+            or (col in given_feature_types and given_feature_types[col] == "raw")
+        ):
             num_unique_values = len(df[col].unique())
-            if num_unique_values / len(df) > 0.5:
+            if num_unique_values / len(df) > 0.2 or (
+                col in given_feature_types and given_feature_types[col] == "raw"
+            ):
                 print(
                     f"Feature {col} was inferred as referring to raw data. If this is not the case, please specify in feature_types!"
                 )
@@ -139,6 +144,7 @@ def encode_normalize_features(
     precomputed_embeddings: Dict[str, np.array],
     embedding_models: Dict[str, str],
     embedding_weights: Dict[str, float],
+    disable_scaling: List[str],
     hf_auth_token: str,
     hf_num_proc: Optional[int],
     hf_batch_size: int,
@@ -152,6 +158,13 @@ def encode_normalize_features(
     :param precomputed_embeddings: Precomputed embeddings that the user might supply.
     :param df: The dataframe containing all the data.
     """
+
+    feature_transformation_pipelines = (
+        {}
+    )  # Save all the transformations to convert features in order to be able to predict lateron.
+    feature_positions = (
+        []
+    )  # save the feature names for each position which is especially important for explainability.
     encoded_data = np.zeros((len(df), 0))
     prereduced_embeddings = {}
     raw_embeddings = {}
@@ -160,15 +173,28 @@ def encode_normalize_features(
         if feature_type == "numerical":
             # TODO: Think about proper scaling method. Intuition here is to preserve outliers,
             # however the range of the data can possibly dominate one hot and ordinal encoded features.
-            normalized_data = RobustScaler(quantile_range=(2.5, 97.5)).fit_transform(
-                df[col].values.reshape(-1, 1)
-            )
-
+            if col in disable_scaling:
+                feature_transformation_pipelines[col] = None
+                normalized_data = df[col].values.reshape(-1, 1)
+            else:
+                scaler = RobustScaler(quantile_range=(2.5, 97.5))
+                normalized_data = scaler.fit_transform(df[col].values.reshape(-1, 1))
+                feature_transformation_pipelines[col] = scaler
+            feature_positions.append(col)
             encoded_data = np.concatenate((encoded_data, normalized_data), axis=1)
+
         elif feature_type == "nominal":
-            one_hot_data = OneHotEncoder(sparse_output=False).fit_transform(
-                df[col].values.reshape(-1, 1)
+            oh_encoder = OneHotEncoder(
+                sparse_output=False,
+                handle_unknown="infrequent_if_exist",
+                feature_name_combiner=lambda input_feature, category: input_feature
+                + "="
+                + str(category),
             )
+            one_hot_data = oh_encoder.fit_transform(df[col].values.reshape(-1, 1))
+            feature_transformation_pipelines[col] = oh_encoder
+            oh_feature_names = oh_encoder.get_feature_names_out(input_features=[col])
+            feature_positions.extend(oh_feature_names)
             # TODO: Should one hot encoded data be further normalized? Max distance is 1.41. Should this be 1?
             # Also how is the ordinal data doing. Currently compressed to 0-1. This might be not good.
             encoded_data = np.concatenate((encoded_data, one_hot_data), axis=1)
@@ -184,9 +210,10 @@ def encode_normalize_features(
                 raise RuntimeError(
                     f"For ordinal features EACH category has to occur in the specified order. Missing {category_difference}."
                 )
-            ordinal_data = OrdinalEncoder(categories=[feature_order]).fit_transform(
-                df[col].values.reshape(-1, 1)
-            )
+            od_encoder = OrdinalEncoder(categories=[feature_order])
+            ordinal_data = od_encoder.fit_transform(df[col].values.reshape(-1, 1))
+            feature_transformation_pipelines[col] = od_encoder
+            feature_positions.append(col)
             ordinal_data = ordinal_data / (
                 len(feature_order) - 1
             )  # normalize with unique category count to make compatible with range of one hot encoding
@@ -221,6 +248,7 @@ def encode_normalize_features(
                 raw_embeddings[
                     col
                 ] = embeddings  # also save them here as they are used in report
+                feature_transformation_pipelines[col] = {}
             elif (
                 raw_feature_types[col] == "audio"
             ):  # TODO: Improve data type inference for raw data
@@ -228,18 +256,30 @@ def encode_normalize_features(
                 embeddings = generate_audio_embeddings(
                     df[col].values, **hf_model_params
                 )
+                feature_transformation_pipelines[col] = {
+                    "hf_model_params": hf_model_params,
+                    "embedding_func": generate_audio_embeddings,
+                }
                 raw_embeddings[col] = embeddings
             elif raw_feature_types[col] == "image":
                 print("Computing image embeddings.")
                 embeddings = generate_image_embeddings(
                     df[col].values, **hf_model_params
                 )
+                feature_transformation_pipelines[col] = {
+                    "hf_model_params": hf_model_params,
+                    "embedding_func": generate_image_embeddings,
+                }
                 raw_embeddings[col] = embeddings
             elif raw_feature_types[col] == "text":  # Treat as text if nothing known
                 print(
                     f"Warning: Column {col} will be treated as text. If the column {col} is a path to some file it is probably not supported yet!"
                 )
                 embeddings = generate_text_embeddings(df[col].values, **hf_model_params)
+                feature_transformation_pipelines[col] = {
+                    "hf_model_params": hf_model_params,
+                    "embedding_func": generate_text_embeddings,
+                }
                 raw_embeddings[col] = embeddings
             else:
                 raise RuntimeError(
@@ -275,7 +315,7 @@ def encode_normalize_features(
 
             print(f"Using num dimensions {num_dimensions}.")
 
-            reduced_embeddings = umap.UMAP(
+            umap_transformer = umap.UMAP(
                 n_neighbors=min(embeddings.shape[0] - 1, n_neighbors),
                 n_components=min(
                     embeddings.shape[0] - 2,
@@ -283,7 +323,9 @@ def encode_normalize_features(
                 ),  # TODO: Do not hardcode this, probably determine based on embedding size and variance. Also, check implications on normalization.
                 # min_dist=0.0,
                 set_op_mix_ratio=op_mix_ratio_prereduction,
-            ).fit_transform(embeddings)
+            )
+            reduced_embeddings = umap_transformer.fit_transform(embeddings)
+            feature_transformation_pipelines[col]["umap_reducer"] = umap_transformer
 
             # Do a normalization of the reduced embedding to match one hot encoded and ordinal encoding respectively
             # Therefore we will run hdbscan on the data real quick to do an estimate of the cluster distances.
@@ -299,6 +341,9 @@ def encode_normalize_features(
                     distances.flatten().mean()
                 )  # TODO: Verify if mean is the right thing. Potentially should be done with RobustScaler?
                 reduced_embeddings = reduced_embeddings / mean_distance
+                feature_transformation_pipelines[col][
+                    "normalization_mean_distance"
+                ] = mean_distance
 
             # Use embedding weight if given for this particular embedding
             if col in embedding_weights:
@@ -306,10 +351,17 @@ def encode_normalize_features(
                     f"Weighting the embedding with manually supplied weight {embedding_weights[col]}."
                 )
                 reduced_embeddings = reduced_embeddings * embedding_weights[col]
+                feature_transformation_pipelines[col][
+                    "embedding_weights"
+                ] = embedding_weights[col]
 
             # safe this as it can be used for generating explanations again
             # do not normalize as this will probably cause non blobby clusters and it is unclear what clustering assumes
             prereduced_embeddings[col] = reduced_embeddings
+
+            feature_positions.extend(
+                [f"{col}_emb{i}" for i in range(reduced_embeddings.shape[1])]
+            )
 
             encoded_data = np.concatenate((encoded_data, reduced_embeddings), axis=1)
 
@@ -317,5 +369,11 @@ def encode_normalize_features(
             raise RuntimeError(
                 "Encountered unknown feature type when encoding and normalizing features."
             )
-
-    return encoded_data, prereduced_embeddings, raw_embeddings
+    assert len(feature_positions) == encoded_data.shape[1]
+    return (
+        encoded_data,
+        prereduced_embeddings,
+        raw_embeddings,
+        feature_transformation_pipelines,
+        feature_positions,
+    )

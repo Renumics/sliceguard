@@ -14,12 +14,13 @@ def get_automl_imports():
     try:
         from flaml import AutoML
         import xgboost
+        import shap
     except ImportError:
         raise RuntimeError(
-            'Optional dependencies flaml and xgboost required! (run pip install "sliceguard[automl]")'
+            'Optional dependencies shap, flaml and xgboost required! (run pip install "sliceguard[automl]")'
         )
 
-    return AutoML
+    return AutoML, shap
 
 
 def fit_outlier_detection_model(encoded_data: np.array):
@@ -58,6 +59,7 @@ def fit_classification_regression_model(
     else:
         encoded_ys = df[y_column].values
         num_classes = None
+        label_encoder = None
         automl_metric = "mse"
 
     if (
@@ -82,8 +84,9 @@ def fit_classification_regression_model(
             hf_model_epochs,
             hf_auth_token=hf_auth_token,
         )
+        model = None
     else:
-        y_probs, y_preds, classes = _fit_embedding_based_model(
+        y_probs, y_preds, classes, model = _fit_embedding_based_model(
             encoded_data,
             task,
             split,
@@ -94,7 +97,7 @@ def fit_classification_regression_model(
             automl_metric,
         )
 
-    return y_preds, y_probs, classes
+    return y_preds, y_probs, classes, model
 
 
 def _fit_hf_model_image_classification(
@@ -148,7 +151,7 @@ def _fit_embedding_based_model(
     encoded_ys,
     automl_metric,
 ):
-    AutoML = get_automl_imports()
+    AutoML, _ = get_automl_imports()
 
     if split is not None:
         if train_split is not None:
@@ -207,4 +210,4 @@ def _fit_embedding_based_model(
         classes = None
     else:
         raise RuntimeError("Could not run inference. Not valid task given.")
-    return y_probs, y_preds, classes
+    return y_probs, y_preds, classes, automl

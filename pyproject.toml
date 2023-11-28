@@ -1,6 +1,6 @@
 [project]
 name = "sliceguard"
-version = "0.0.33"
+version = "0.0.34"
 authors = [
   { name="Renumics GmbH", email="info@renumics.com"},
   { name="Daniel Klitzke", email="daniel.klitzke@renumics.com"}
@@ -41,6 +41,7 @@ embedding = [
 all = [
   "flaml >= 2.0.0",
   "xgboost >= 1.7.6, < 2.0.0",
+  "shap >= 0.43.0",
   "transformers[torch] >= 4.30.2",
   "sentence-transformers >= 2.2.1",
   "torchaudio >= 2.0.2",

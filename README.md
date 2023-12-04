@@ -25,7 +25,7 @@ sg.report()
 
 ## ⏱️ Quickstart
 
-Install sliceguard by running `pip install sliceguard`.
+Install sliceguard by running `pip install sliceguard[all]`.
 
 Go straight to our quickstart examples for your use case:
 

@@ -1,12 +1,172 @@
-from typing import Callable, List, Dict, Literal
+from typing import Callable, List, Dict, Literal, Optional
 import math
+import torch
 
 from hnne import HNNE
+from bertopic import BERTopic
+from bertopic.representation import KeyBERTInspired
+from bertopic.vectorizers import ClassTfidfTransformer
+from sklearn.feature_extraction.text import CountVectorizer
 import numpy as np
 import pandas as pd
 from fairlearn.metrics import MetricFrame
 from sklearn.cluster import HDBSCAN
 from sklearn.preprocessing import LabelEncoder
+
+def set_device():
+    if torch.cuda.is_available():
+       return "cuda"
+    return "cpu"
+
+def setup_BERTopic(top_n_words: int = 10, embedding_model: str = "all-MiniLM-L6-v2"):
+# prepare BERTopic components
+    vectorizer_model = CountVectorizer(
+        stop_words="english", max_features=17500, ngram_range=(1, 3)
+    )
+    ctfidf_model = ClassTfidfTransformer(reduce_frequent_words=True)
+    # The main representation of a topic
+    main_representation = KeyBERTInspired()
+
+    model = BERTopic(
+        top_n_words=top_n_words,
+        verbose=True,
+        vectorizer_model=vectorizer_model,
+        representation_model=main_representation,
+        ctfidf_model=ctfidf_model,
+        calculate_probabilities=True,
+        embedding_model=embedding_model,
+    )
+    return model
+
+def generate_topic_modelling_metric_frames(
+    encoded_data: np.array,
+    df: pd.DataFrame,
+    y: str,
+    y_pred: str,
+    metric: Callable,
+    remove_outliers: bool,
+    text_embeddings: Optional[np.array],
+    samples: Optional[List[str]]
+):
+    """
+    Cluster topic probabilities per sample.
+
+    :param encoded_data: the probability matrix; should be of shape (num_samples, num_topics)
+    :param df: The dataframe containing ground-truth and predictions.
+    :param y: The name of the ground-truth column.
+    :param y_pred: The name of the predictions column.
+    :param metric: The metric function.
+    :param remove_outliers: Compute metric in a non-vectorized way for each sample and remove outliers.
+    :param text_embeddings: If probabilities are not present, text embeddings to speed up probabilities calculation
+    :param samples: If probabilities are not present, list of texts to fit the model
+
+    """
+    #### Text-specific pre-processing ####
+    probs = None
+    # if no probabilities present, calculate them
+    if not encoded_data:
+        device = set_device()
+        model = setup_BERTopic()
+        model.to(device)
+        
+        if torch.is_tensor(text_embeddings):
+            text_embeddings = text_embeddings.numpy()
+            
+        numerical_labels = pd.to_numeric(df[y], errors='coerce')
+        # if all samples have numerical, use them as target
+        if numerical_labels.notna().all():
+            _, probs = model.fit_transform(samples, embeddings=text_embeddings, y=numerical_labels)
+        else:
+            _, probs = model.fit_transform(samples, embeddings=text_embeddings)
+        encoded_data = probs
+            
+    
+    #### Cluster the sample probabilities ###
+    projection = None
+    
+    # Clustering is used for binning.
+    # Identify hierarchical clustering with h-nne
+    # As h-nne fails for less than 2 dimensions introduce dummy dimension in this case
+    num_features = encoded_data.shape[1]
+    if num_features <= 1:
+        encoded_data = np.concatenate(
+            (encoded_data, np.zeros((encoded_data.shape[0], 1))), axis=1
+        )
+    try:
+        hnne = HNNE(
+            metric="euclidean"
+        )  # TODO Probably explore different settings for hnne. Default of metric is cosine. To determine if this is better choice!
+        projection = hnne.fit_transform(encoded_data)
+        partitions = hnne.hierarchy_parameters.partitions
+
+        partitions = np.flip(
+            partitions, axis=1
+        )  # reverse the order of the hierarchy levels, go from coarse to fine
+        partition_sizes = hnne.hierarchy_parameters.partition_sizes
+        partition_levels = len(partition_sizes)
+
+    except:
+        # The projection might fail if there are not enough data points.
+        # In this case just use other clustering approach as fallback.
+        print(
+            "Warning: Using hierarchical clustering failed. Probably the provided datapoints were not enough. HDBSCAN fallback might yield bad results!"
+        )
+        hdbscan = HDBSCAN(min_cluster_size=2)
+        hdbscan.fit(encoded_data)
+        partitions = hdbscan.labels_[..., np.newaxis]
+        partition_sizes = [len(np.unique(hdbscan.labels_))]
+        partition_levels = len(partition_sizes)
+        # TODO: This doesn't necessarily make sense as noisy samples will be treated as own cluster. However that is how it is now.
+
+    clustering_cols = [f"clustering_{i}" for i in range(partition_levels)]
+    clustering_df = pd.DataFrame(
+        data=partitions, columns=clustering_cols, index=df.index
+    )
+    
+    # persistence of calculated probabilities
+    if probs:
+        clustering_df["Calculated_Probabilities"] = probs
+    
+    # Calculate samplewise metric in order to delete well performing samples from clusters
+    # This is done as the clustering does probably contain outliers in some cases that influence the
+    # overall metric while most of the cluster is actually fine.
+    # E.g. word error rate is 20 for one sample but 0.2 for most others. This should not be marked as issue!
+    if remove_outliers == True:
+        samplewise_metrics = []
+        for idx, sample in df.iterrows():
+            sample_metric = metric(np.array([sample[y]]), np.array([sample[y_pred]]))
+            samplewise_metrics.append(sample_metric)
+        clustering_df["metric"] = samplewise_metrics
+
+    # Calculate fairness metrics on the clusters with fairlearn
+    mfs = []
+    clustering_metric_cols = []
+    clustering_count_cols = []
+    for col in clustering_cols:
+        mf = MetricFrame(
+            metrics={"metric": metric},
+            y_true=df[y],
+            y_pred=df[y_pred],
+            sensitive_features=clustering_df[col],
+        )
+        mfs.append(mf)
+
+        metric_col = f"{col}_metric"
+        clustering_metric_cols.append(metric_col)
+        clustering_df[metric_col] = np.nan
+
+        count_col = f"{col}_count"
+        clustering_count_cols.append(count_col)
+        clustering_df[count_col] = np.nan
+
+        for idx, row in mf.by_group.iterrows():
+            clustering_df.loc[clustering_df[col] == idx, metric_col] = row["metric"]
+            clustering_df.loc[clustering_df[col] == idx, count_col] = (
+                clustering_df[col] == idx
+            ).sum()
+
+    return projection, mfs, clustering_df, clustering_cols, clustering_metric_cols
+
 
 
 def generate_metric_frames(

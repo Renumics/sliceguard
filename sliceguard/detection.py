@@ -163,6 +163,7 @@ def generate_topic_modelling_metric_frames(
             text_embeddings = text_embeddings.numpy()
 
         # if all samples have numerical, use them as target
+        print("Calculating topic probabilities, this might take some time...")
         if pd.api.types.is_numeric_dtype(df[y]):
             _, probs = model.fit_transform(samples, embeddings=text_embeddings, y=df[y])
         else:
@@ -172,6 +173,7 @@ def generate_topic_modelling_metric_frames(
             probs = probs.numpy()
         encoded_data = probs
 
+    print("topic probabilities loaded")
     #### Cluster the sample probabilities ###
     projection = None
 

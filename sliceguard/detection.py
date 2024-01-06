@@ -159,6 +159,7 @@ def generate_topic_modelling_metric_frames(
         model.to(device)
 
         if torch.is_tensor(text_embeddings):
+            text_embeddings = text_embeddings.to("cpu")
             text_embeddings = text_embeddings.numpy()
 
         # if all samples have numerical, use them as target
@@ -166,6 +167,9 @@ def generate_topic_modelling_metric_frames(
             _, probs = model.fit_transform(samples, embeddings=text_embeddings, y=df[y])
         else:
             _, probs = model.fit_transform(samples, embeddings=text_embeddings)
+        if torch.is_tensor(probs):
+            probs = probs.to("cpu")
+            probs = probs.numpy()
         encoded_data = probs
 
     #### Cluster the sample probabilities ###

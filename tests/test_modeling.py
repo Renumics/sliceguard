@@ -3,6 +3,7 @@ import datasets
 
 from sliceguard import SliceGuard
 
+
 def test_sliceguard_images():
     dataset = datasets.load_dataset("renumics/cifar100-enriched", split="all")
     df = dataset.to_pandas()

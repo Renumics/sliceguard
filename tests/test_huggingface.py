@@ -135,15 +135,15 @@ def test_huggingface_xtreme():
     df = data.from_huggingface("xtreme", "XNLI")
     sg = SliceGuard()
     issue_df = sg.find_issues(
-            df.sample(1000),
-            ['language'],
-            "gold_label",
-            metric=accuracy_score,
-            min_drop=0.05,
-            min_support=10,
-            automl_task="classification",
-            automl_time_budget=40.0,
-        )
+        df.sample(1000),
+        ["language"],
+        "gold_label",
+        metric=accuracy_score,
+        min_drop=0.05,
+        min_support=10,
+        automl_task="classification",
+        automl_time_budget=40.0,
+    )
     sg.report()
 
 
@@ -151,16 +151,16 @@ def test_huggingface_indonlu():
     df = data.from_huggingface("indonlp/indonlu", "smsa")
     sg = SliceGuard()
     issue_df = sg.find_issues(
-            df.sample(1000),
-            ['text'],
-            "label",
-            metric=accuracy_score,
-            min_drop=0.05,
-            min_support=10,
-            automl_train_split="train",
-            automl_task="classification",
-            automl_time_budget=40.0,
-        )
+        df.sample(1000),
+        ["text"],
+        "label",
+        metric=accuracy_score,
+        min_drop=0.05,
+        min_support=10,
+        automl_train_split="train",
+        automl_task="classification",
+        automl_time_budget=40.0,
+    )
     sg.report()
 
 
@@ -168,21 +168,21 @@ def test_huggingface_tweet_eval():
     df = data.from_huggingface("tweet_eval", "emoji")
     sg = SliceGuard()
     issue_df = sg.find_issues(
-            df.sample(1000),
-            ['text'],
-            "label",
-            metric=accuracy_score,
-            # metric_mode="max",
-            # wer_metric,
-            # metric_mode="min",
-            min_drop=0.05,
-            min_support=10,
-            # automl_split_key="",
-            automl_train_split="train",
-            automl_task="classification",
-            # automl_use_full_embeddings=True,
-            automl_time_budget=40.0,
-        )
+        df.sample(1000),
+        ["text"],
+        "label",
+        metric=accuracy_score,
+        # metric_mode="max",
+        # wer_metric,
+        # metric_mode="min",
+        min_drop=0.05,
+        min_support=10,
+        # automl_split_key="",
+        automl_train_split="train",
+        automl_task="classification",
+        # automl_use_full_embeddings=True,
+        automl_time_budget=40.0,
+    )
     sg.report()
 
 

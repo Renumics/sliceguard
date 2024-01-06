@@ -51,7 +51,8 @@ def generate_topic_modelling_metric_frames(
     """
     Cluster topic probabilities per sample.
 
-    :param encoded_data: the probability matrix; should be of shape (num_samples, num_topics)
+    :param encoded_data: the topic probability matrix; should be of shape (num_samples, num_topics) where [sample_x, prob_i]
+    corresponds to the probability prob_i of sample_x belonging to topic i
     :param df: The dataframe containing ground-truth and predictions.
     :param y: The name of the ground-truth column.
     :param y_pred: The name of the predictions column.
@@ -72,10 +73,9 @@ def generate_topic_modelling_metric_frames(
         if torch.is_tensor(text_embeddings):
             text_embeddings = text_embeddings.numpy()
             
-        numerical_labels = pd.to_numeric(df[y], errors='coerce')
         # if all samples have numerical, use them as target
-        if numerical_labels.notna().all():
-            _, probs = model.fit_transform(samples, embeddings=text_embeddings, y=numerical_labels)
+        if pd.api.types.is_numeric_dtype(df[y]):
+            _, probs = model.fit_transform(samples, embeddings=text_embeddings, y=df[y])
         else:
             _, probs = model.fit_transform(samples, embeddings=text_embeddings)
         encoded_data = probs

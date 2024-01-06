@@ -25,7 +25,11 @@ from renumics.spotlight import Embedding
 from renumics.spotlight import layout
 
 from .utils import infer_feature_types, encode_normalize_features
-from .detection import generate_metric_frames, detect_issues
+from .detection import (
+    generate_metric_frames,
+    detect_issues,
+    generate_topic_modelling_metric_frames,
+)
 from .explanation import explain_clusters
 from .modeling import (
     fit_outlier_detection_model,
@@ -73,6 +77,9 @@ class SliceGuard:
         automl_hf_model_architecture: Optional[str] = None,
         automl_hf_model_output_dir: str = "./hf_model",
         automl_hf_model_epochs: int = 5,
+        clustering: str = "default",
+        text_embeddings: np.array = None,
+        samples: List[str] = None,
     ) -> List[dict]:
         """
         Find slices that are classified badly by your model.
@@ -116,6 +123,9 @@ class SliceGuard:
         :param automl_hf_model_architecture: Model architecture used to train a model on "features". Right now supports only image classification.
         :param automl_hf_model_output_dir: Output directory for training deep learning models via the huggingface transformers library.
         :param automl_hf_model_epochs: If finetuning hf model, this determines how many epochs the finetuning is going.
+        :param clustering: If clustering should make use of topic modelling
+        :param text_embeddings: text embeddings for topic modelling
+        :param samples: text samples for topic modelling
         :rtype: List of issues, represented as python dicts.
         """
 
@@ -174,6 +184,7 @@ class SliceGuard:
             automl_hf_model_architecture=automl_hf_model_architecture,
             automl_hf_model_output_dir=automl_hf_model_output_dir,
             automl_hf_model_epochs=automl_hf_model_epochs,
+            clustering=clustering,
         )
 
         if len(mfs) > 0:
@@ -535,6 +546,9 @@ class SliceGuard:
         automl_hf_model_architecture: "transformers.PreTrainedModel" = None,
         automl_hf_model_output_dir: Union[str, Path] = None,
         automl_hf_model_epochs: int = 5,
+        clustering: str = "default",
+        text_embeddings: np.array = None,
+        samples: List[str] = None,
     ):
         assert (
             all([(f in data.columns or f in precomputed_embeddings) for f in features])
@@ -671,15 +685,33 @@ class SliceGuard:
         # 2. hierarchy level that is most indicative of a real problem is then determined
         # 3. the reason for the problem e.g. feature combination or rule that is characteristic for the cluster is determined.
 
-        (
-            projection,
-            mfs,
-            clustering_df,
-            clustering_cols,
-            clustering_metric_cols,
-        ) = generate_metric_frames(
-            encoded_data, df, y, y_pred, metric, feature_types, remove_outliers
-        )
+        if clustering == "default":
+            (
+                projection,
+                mfs,
+                clustering_df,
+                clustering_cols,
+                clustering_metric_cols,
+            ) = generate_metric_frames(
+                encoded_data, df, y, y_pred, metric, feature_types, remove_outliers
+            )
+        else:
+            (
+                projection,
+                mfs,
+                clustering_df,
+                clustering_cols,
+                clustering_metric_cols,
+            ) = generate_topic_modelling_metric_frames(
+                encoded_data,
+                df,
+                y,
+                y_pred,
+                metric,
+                remove_outliers,
+                text_embeddings,
+                samples,
+            )
 
         return (
             feature_types,

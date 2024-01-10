@@ -592,6 +592,7 @@ class SliceGuard:
             hf_batch_size,
             df,
             mode,
+            y
         )
 
         self._feature_encoders = feature_encoders

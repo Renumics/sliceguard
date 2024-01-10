@@ -1,5 +1,6 @@
 # Embedding support for text, images, audio
 from multiprocess import set_start_method
+from typing import List
 import pandas as pd
 import datasets
 import numpy as np
@@ -18,6 +19,39 @@ def get_embedding_imports():
 
     return SentenceTransformer, AutoFeatureExtractor, AutoModel, torch
 
+def get_BERTopic_imports():
+    try:
+        from bertopic import BERTopic
+        from bertopic.representation import KeyBERTInspired
+        from bertopic.vectorizers import ClassTfidfTransformer
+        from sklearn.feature_extraction.text import CountVectorizer
+    except:
+        raise Warning(
+            "Optional dependency required! (pip install sliceguard[embedding])"
+        )
+    return CountVectorizer, ClassTfidfTransformer, KeyBERTInspired, BERTopic
+
+def setup_BERTopic(top_n_words: int = 10, embedding_model: str = "all-MiniLM-L6-v2"):
+    CountVectorizer, ClassTfidfTransformer, KeyBERTInspired, BERTopic = get_BERTopic_imports()
+    # prepare BERTopic components
+    vectorizer_model = CountVectorizer(
+        stop_words="english", max_features=17500, ngram_range=(1, 3)
+    )
+    ctfidf_model = ClassTfidfTransformer(reduce_frequent_words=True)
+    # The main representation of a topic
+    main_representation = KeyBERTInspired()
+
+    model = BERTopic(
+        top_n_words=top_n_words,
+        verbose=True,
+        vectorizer_model=vectorizer_model,
+        representation_model=main_representation,
+        ctfidf_model=ctfidf_model,
+        calculate_probabilities=True,
+        embedding_model=embedding_model,
+    )
+    return model
+
 
 def generate_text_embeddings(
     texts,
@@ -25,7 +59,10 @@ def generate_text_embeddings(
     hf_auth_token=None,
     hf_num_proc=None,
     hf_batch_size=1,
+    use_topic_modelling = True,
+    target_values: List[int] = None,
 ):
+    
     SentenceTransformer, _, _, torch = get_embedding_imports()
 
     if hf_num_proc:
@@ -37,10 +74,25 @@ def generate_text_embeddings(
     print(
         f"Embedding computation on {device} with batch size {hf_batch_size} and multiprocessing {hf_num_proc}."
     )
-
+    
     model = SentenceTransformer(model_name, device=device, use_auth_token=hf_auth_token)
     embeddings = model.encode(texts, batch_size=hf_batch_size)
-    return embeddings
+    if not use_topic_modelling:
+        return embeddings
+    
+    # calclate topic probabilities as they are not in pre-computed embeddings
+    model = setup_BERTopic()
+
+    print(
+        f"Topic probability computation on {device}."
+    )
+    # if all samples have numerical, use them as target
+    if pd.api.types.is_numeric_dtype(pd.Series(target_values)):
+        _, probs = model.fit_transform(texts, embeddings=embeddings, y=target_values)
+    else:
+        _, probs = model.fit_transform(texts, embeddings=embeddings)
+    return probs
+
 
 
 def _extract_embeddings_images(model, feature_extractor, col_name="image"):

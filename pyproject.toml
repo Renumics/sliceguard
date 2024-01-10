@@ -33,6 +33,7 @@ automl = [
   "shap >= 0.43.0",
 ]
 embedding = [
+  "bertopic >= 0.16.0",
   "transformers[torch] >= 4.30.2",
   "sentence-transformers >= 2.2.1",
   "torchaudio >= 2.0.2",  

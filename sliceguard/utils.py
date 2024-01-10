@@ -150,6 +150,7 @@ def encode_normalize_features(
     hf_batch_size: int,
     df: pd.DataFrame,
     mode: Literal["outlier", "automl", "native"],
+    y: str
 ):
     """
     :param features: Names of features that should be encoded and normalized for later processing.
@@ -157,6 +158,7 @@ def encode_normalize_features(
     :param feature_orders: If ordinal features are present you have to supply an order for each of them.
     :param precomputed_embeddings: Precomputed embeddings that the user might supply.
     :param df: The dataframe containing all the data.
+    :param y: the target values, column name of df 
     """
 
     feature_transformation_pipelines = (
@@ -219,6 +221,7 @@ def encode_normalize_features(
             )  # normalize with unique category count to make compatible with range of one hot encoding
             encoded_data = np.concatenate((encoded_data, ordinal_data), axis=1)
         elif feature_type == "raw" or feature_type == "embedding":
+            use_topic_modelling = False
             # Print model that will be used for computing embeddings
             if col in df.columns and col not in precomputed_embeddings:
                 hf_model_params = (
@@ -275,7 +278,8 @@ def encode_normalize_features(
                 print(
                     f"Warning: Column {col} will be treated as text. If the column {col} is a path to some file it is probably not supported yet!"
                 )
-                embeddings = generate_text_embeddings(df[col].values, **hf_model_params)
+                use_topic_modelling = True
+                embeddings = generate_text_embeddings(df[col].values, **hf_model_params, target_values=df[y], use_topic_modelling = use_topic_modelling)
                 feature_transformation_pipelines[col] = {
                     "hf_model_params": hf_model_params,
                     "embedding_func": generate_text_embeddings,
@@ -312,10 +316,12 @@ def encode_normalize_features(
                 num_dimensions = num_embedding_dimensions
             else:
                 num_dimensions = num_mixed_dimensions
+            
+            # Topic modelling does not need to be reduced
+            if not use_topic_modelling:
+                print(f"Using num dimensions {num_dimensions}.")
 
-            print(f"Using num dimensions {num_dimensions}.")
-
-            umap_transformer = umap.UMAP(
+                umap_transformer = umap.UMAP(
                 n_neighbors=min(embeddings.shape[0] - 1, n_neighbors),
                 n_components=min(
                     embeddings.shape[0] - 2,
@@ -324,8 +330,10 @@ def encode_normalize_features(
                 # min_dist=0.0,
                 set_op_mix_ratio=op_mix_ratio_prereduction,
             )
-            reduced_embeddings = umap_transformer.fit_transform(embeddings)
-            feature_transformation_pipelines[col]["umap_reducer"] = umap_transformer
+                reduced_embeddings = umap_transformer.fit_transform(embeddings)
+                feature_transformation_pipelines[col]["umap_reducer"] = umap_transformer
+            else:
+                reduced_embeddings = embeddings
 
             # Do a normalization of the reduced embedding to match one hot encoded and ordinal encoding respectively
             # Therefore we will run hdbscan on the data real quick to do an estimate of the cluster distances.

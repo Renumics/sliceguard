@@ -82,7 +82,6 @@ def generate_text_embeddings(
     
     # calclate topic probabilities as they are not in pre-computed embeddings
     model = setup_BERTopic()
-    model.to(device)
 
     print(
         f"Topic probability computation on {device}."
